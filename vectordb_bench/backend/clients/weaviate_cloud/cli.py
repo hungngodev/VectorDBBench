@@ -3,6 +3,7 @@ from typing import Annotated, Unpack
 import click
 from pydantic import SecretStr
 
+from ..api import MetricType
 from ....cli.cli import (
     CommonTypedDict,
     cli,
@@ -42,6 +43,16 @@ class WeaviateTypedDict(CommonTypedDict):
         int,
         click.option("--ef", type=int, default=256, help="HNSW index parameter ef for search"),
     ]
+    metric_type: Annotated[
+        str,
+        click.option(
+            "--metric-type",
+            type=click.Choice([metric.value for metric in (MetricType.COSINE, MetricType.L2, MetricType.IP)], case_sensitive=False),
+            default=MetricType.COSINE.value,
+            show_default=True,
+            help="Distance metric for Weaviate HNSW.",
+        ),
+    ]
 
 
 @cli.command()
@@ -58,6 +69,7 @@ def Weaviate(**parameters: Unpack[WeaviateTypedDict]):
             no_auth=parameters["no_auth"],
         ),
         db_case_config=WeaviateIndexConfig(
+            metric_type=MetricType(parameters["metric_type"].upper()),
             efConstruction=parameters["ef_construction"],
             maxConnections=parameters["m"],
             ef=parameters["ef"],

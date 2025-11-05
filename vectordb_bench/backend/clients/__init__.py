@@ -29,6 +29,7 @@ class DB(Enum):
     QdrantCloud = "QdrantCloud"
     QdrantLocal = "QdrantLocal"
     WeaviateCloud = "WeaviateCloud"
+    Vald = "Vald"
     PgVector = "PgVector"
     PgVectoRS = "PgVectoRS"
     PgVectorScale = "PgVectorScale"
@@ -89,6 +90,11 @@ class DB(Enum):
             from .weaviate_cloud.weaviate_cloud import WeaviateCloud
 
             return WeaviateCloud
+
+        if self == DB.Vald:
+            from .vald.vald_local import ValdLocal
+
+            return ValdLocal
 
         if self == DB.PgVector:
             from .pgvector.pgvector import PgVector
@@ -241,6 +247,11 @@ class DB(Enum):
 
             return WeaviateConfig
 
+        if self == DB.Vald:
+            from .vald.config import ValdConfig
+
+            return ValdConfig
+
         if self == DB.PgVector:
             from .pgvector.config import PgVectorConfig
 
@@ -387,6 +398,11 @@ class DB(Enum):
             from .weaviate_cloud.config import WeaviateIndexConfig
 
             return WeaviateIndexConfig
+
+        if self == DB.Vald:
+            from .vald.config import ValdIndexConfig
+
+            return ValdIndexConfig
 
         if self == DB.PgVector:
             from .pgvector.config import _pgvector_case_config

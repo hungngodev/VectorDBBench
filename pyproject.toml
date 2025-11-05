@@ -56,6 +56,8 @@ all = [
     "qdrant-client",
     "pinecone-client",
     "weaviate-client",
+    "vald-client-python>=1.6.3,<1.8.0",
+    "googleapis-common-protos>=1.66.0,<2.0.0",
     "elasticsearch",
     "sqlalchemy",
     "redis",
@@ -98,6 +100,7 @@ clickhouse      = [ "clickhouse-connect" ]
 vespa           = [ "pyvespa" ]
 lancedb         = [ "lancedb" ]
 oceanbase       = [ "mysql-connector-python" ]
+vald            = [ "vald-client-python>=1.6.3,<1.8.0", "googleapis-common-protos>=1.66.0,<2.0.0" ]
 
 [project.urls]
 "repository" = "https://github.com/zilliztech/VectorDBBench"
@@ -225,4 +228,3 @@ builtins-ignorelist = [
 "vectordb_bench/backend/clients/*" = ["PLC0415"]
 "vectordb_bench/cli/batch_cli.py" = ["PLC0415"]
 "vectordb_bench/backend/data_source.py" = ["PLC0415"]
-

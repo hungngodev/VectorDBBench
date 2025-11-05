@@ -455,6 +455,10 @@ To fix the coding styles automatically
 make format
 ```
 
+### Kubernetes benchmark quick start
+
+To benchmark Milvus, Qdrant, Weaviate, and Vald inside a Kubernetes cluster, use the new Vald adapter (`vectordbbench Vald`) together with the sample configuration at `vectordb_bench/config-files/k8s_local_fourdb.yml`. That config runs the built-in `Performance768D1M` case (Cohere dataset, 1M vectors @ 768 dim) for every backend. Helm installation commands, benchmark pod YAML, and best practices are documented in [docs/k8s_vald_benchmark.md](docs/k8s_vald_benchmark.md).
+
 ## How does it work?
 ### Result Page
 ![image](https://github.com/zilliztech/VectorDBBench/assets/105927039/8a981327-c1c6-4796-8a85-c86154cb5472)
@@ -477,7 +481,7 @@ Now we can only run one task at the same time.
 ### Code Structure
 ![image](https://github.com/zilliztech/VectorDBBench/assets/105927039/8c06512e-5419-4381-b084-9c93aed59639)
 ### Client
-Our client module is designed with flexibility and extensibility in mind, aiming to integrate APIs from different systems seamlessly. As of now, it supports Milvus, Zilliz Cloud, Elastic Search, Pinecone, Qdrant Cloud, Weaviate Cloud, PgVector, Redis, Chroma, etc. Stay tuned for more options, as we are consistently working on extending our reach to other systems.
+Our client module is designed with flexibility and extensibility in mind, aiming to integrate APIs from different systems seamlessly. As of now, it supports Milvus, Zilliz Cloud, Elastic Search, Pinecone, Qdrant Cloud, Weaviate Cloud, Vald, PgVector, Redis, Chroma, etc. Stay tuned for more options, as we are consistently working on extending our reach to other systems.
 ### Benchmark Cases
 We've developed lots of comprehensive benchmark cases to test vector databases' various capabilities, each designed to give you a different piece of the puzzle. These cases are categorized into four main types:
 #### Capacity Case

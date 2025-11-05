@@ -18,6 +18,7 @@ from ..backend.clients.redis.cli import Redis
 from ..backend.clients.s3_vectors.cli import S3Vectors
 from ..backend.clients.test.cli import Test
 from ..backend.clients.tidb.cli import TiDB
+from ..backend.clients.vald.cli import Vald
 from ..backend.clients.vespa.cli import Vespa
 from ..backend.clients.weaviate_cloud.cli import Weaviate
 from ..backend.clients.zilliz_cloud.cli import ZillizAutoIndex
@@ -48,6 +49,7 @@ cli.add_command(LanceDB)
 cli.add_command(HologresHGraph)
 cli.add_command(QdrantCloud)
 cli.add_command(QdrantLocal)
+cli.add_command(Vald)
 cli.add_command(BatchCli)
 cli.add_command(S3Vectors)
 

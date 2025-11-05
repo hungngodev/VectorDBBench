@@ -4,6 +4,7 @@ import click
 from pydantic import SecretStr
 
 from vectordb_bench.backend.clients import DB
+from vectordb_bench.backend.clients.api import MetricType
 from vectordb_bench.cli.cli import (
     CommonTypedDict,
     cli,
@@ -40,6 +41,16 @@ class QdrantLocalTypedDict(CommonTypedDict):
             help="HNSW index parameter hnsw_ef, set 0 to use ef_construct for search",
         ),
     ]
+    metric_type: Annotated[
+        str,
+        click.option(
+            "--metric-type",
+            type=click.Choice([metric.value for metric in (MetricType.COSINE, MetricType.L2, MetricType.IP)], case_sensitive=False),
+            default=MetricType.COSINE.value,
+            show_default=True,
+            help="Similarity metric used for HNSW distance calculations.",
+        ),
+    ]
 
 
 @cli.command()
@@ -55,6 +66,7 @@ def QdrantLocal(**parameters: Unpack[QdrantLocalTypedDict]):
             m=parameters["m"],
             ef_construct=parameters["ef_construct"],
             hnsw_ef=parameters["hnsw_ef"],
+            metric_type=MetricType(parameters["metric_type"].upper()),
         ),
         **parameters,
     )

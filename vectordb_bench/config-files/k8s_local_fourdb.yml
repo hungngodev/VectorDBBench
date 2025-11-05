@@ -1,0 +1,67 @@
+MilvusHNSW:
+  db_label: k8s-milvus
+  task_label: milvus-k8s-benchmark
+  case_type: Performance768D1M
+  uri: http://milvus-svc.default.svc.cluster.local:19530
+  metric_type: COSINE
+  m: 16
+  ef_construction: 256
+  ef_search: 256
+  num_shards: 1
+  replica_number: 1
+  k: 10
+  drop_old: true
+  load: true
+  search_serial: true
+  search_concurrent: true
+
+QdrantLocal:
+  db_label: k8s-qdrant
+  task_label: qdrant-k8s-benchmark
+  case_type: Performance768D1M
+  url: http://qdrant-svc.default.svc.cluster.local:6333
+  metric_type: COSINE
+  on_disk: false
+  m: 16
+  ef_construct: 256
+  hnsw_ef: 256
+  k: 10
+  drop_old: true
+  load: true
+  search_serial: true
+  search_concurrent: true
+
+Weaviate:
+  db_label: k8s-weaviate
+  task_label: weaviate-k8s-benchmark
+  case_type: Performance768D1M
+  url: http://weaviate-svc.default.svc.cluster.local:8080
+  api_key: ""
+  no_auth: true
+  m: 16
+  ef_construction: 256
+  ef: 256
+  metric_type: COSINE
+  k: 10
+  drop_old: true
+  load: true
+  search_serial: true
+  search_concurrent: true
+
+Vald:
+  db_label: k8s-vald
+  task_label: vald-k8s-benchmark
+  case_type: Performance768D1M
+  host: vald-gateway.default.svc.cluster.local
+  port: 8081
+  use_tls: false
+  batch_size: 128
+  metric_type: COSINE
+  num: 10
+  min_num: 1
+  wait_for_sync_seconds: 10
+  k: 10
+  drop_old: true
+  load: true
+  search_serial: true
+  search_concurrent: true

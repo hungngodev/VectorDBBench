@@ -4,6 +4,7 @@ import click
 from pydantic import SecretStr
 
 from vectordb_bench.backend.clients import DB
+from vectordb_bench.backend.clients.api import MetricType
 from vectordb_bench.cli.cli import (
     CommonTypedDict,
     HNSWFlavor3,
@@ -96,7 +97,21 @@ def MilvusFlat(**parameters: Unpack[MilvusAutoIndexTypedDict]):
     )
 
 
-class MilvusHNSWTypedDict(CommonTypedDict, MilvusTypedDict, HNSWFlavor3): ...
+class MilvusHNSWTypedDict(CommonTypedDict, MilvusTypedDict, HNSWFlavor3):
+    metric_type: Annotated[
+        str,
+        click.option(
+            "--metric-type",
+            type=click.Choice([metric.value for metric in (MetricType.COSINE, MetricType.L2, MetricType.IP)], case_sensitive=False),
+            default=MetricType.COSINE.value,
+            show_default=True,
+            help="Similarity metric to use for Milvus HNSW index.",
+        ),
+    ]
+
+
+def _parse_metric(value: str) -> MetricType:
+    return MetricType(value.upper())
 
 
 @cli.command()
@@ -118,6 +133,7 @@ def MilvusHNSW(**parameters: Unpack[MilvusHNSWTypedDict]):
             M=parameters["m"],
             efConstruction=parameters["ef_construction"],
             ef=parameters["ef_search"],
+            metric_type=_parse_metric(parameters["metric_type"]),
         ),
         **parameters,
     )
@@ -184,6 +200,7 @@ def MilvusHNSWPQ(**parameters: Unpack[MilvusHNSWPQTypedDict]):
             efConstruction=parameters["ef_construction"],
             ef=parameters["ef_search"],
             nbits=parameters["nbits"],
+            metric_type=_parse_metric(parameters["metric_type"]),
             refine=parameters["refine"],
             refine_type=parameters["refine_type"],
             refine_k=parameters["refine_k"],
@@ -227,6 +244,7 @@ def MilvusHNSWPRQ(**parameters: Unpack[MilvusHNSWPRQTypedDict]):
             M=parameters["m"],
             efConstruction=parameters["ef_construction"],
             ef=parameters["ef_search"],
+            metric_type=_parse_metric(parameters["metric_type"]),
             nbits=parameters["nbits"],
             refine=parameters["refine"],
             refine_type=parameters["refine_type"],
@@ -268,6 +286,7 @@ def MilvusHNSWSQ(**parameters: Unpack[MilvusHNSWSQTypedDict]):
             M=parameters["m"],
             efConstruction=parameters["ef_construction"],
             ef=parameters["ef_search"],
+            metric_type=_parse_metric(parameters["metric_type"]),
             sq_type=parameters["sq_type"],
             refine=parameters["refine"],
             refine_type=parameters["refine_type"],
