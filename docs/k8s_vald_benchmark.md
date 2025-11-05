@@ -35,7 +35,7 @@ The repository now ships a native Vald adapter:
 - `vectordb_bench/backend/clients/vald/vald_local.py` implements the `VectorDB` interface (load, search, optimize).
 - `vectordb_bench/backend/clients/vald/config.py` maps YAML/CLI options into Vald connection and search configs.
 - `vectordb_bench/backend/clients/vald/cli.py` adds a `Vald` CLI command (`vectordbbench Vald ...`).
-- `vectordb_bench/config-files/vald_sample_config.yml` and `k8s_local_fourdb.yml` show ready-to-use configurations. The latter runs the built-in `Performance768D1M` case (Cohere 1M vectors, 768 dim) so every backend sees the same dataset and distance metric.
+- `vectordb_bench/config-files/vald_sample_config.yml` and `k8s_local_fourdb.yml` show ready-to-use configurations. The latter runs the built-in `Performance768D1M` case (Cohere 1M vectors, 768 dim) so every backend sees the same dataset and distance metric. Use `./prepare_datasets.sh /mnt/nfs/home/hmngo/scratch/vectordb_bench/dataset` (or another target) to download the dataset to durable storage before benchmarking.
 
 Install dependencies with:
 

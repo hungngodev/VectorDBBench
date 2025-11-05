@@ -457,7 +457,7 @@ make format
 
 ### Kubernetes benchmark quick start
 
-To benchmark Milvus, Qdrant, Weaviate, and Vald inside a Kubernetes cluster, use the new Vald adapter (`vectordbbench Vald`) together with the sample configuration at `vectordb_bench/config-files/k8s_local_fourdb.yml`. That config runs the built-in `Performance768D1M` case (Cohere dataset, 1M vectors @ 768 dim) for every backend. Helm installation commands, benchmark pod YAML, and best practices are documented in [docs/k8s_vald_benchmark.md](docs/k8s_vald_benchmark.md).
+To benchmark Milvus, Qdrant, Weaviate, and Vald inside a Kubernetes cluster, use the new Vald adapter (`vectordbbench Vald`) together with the sample configuration at `vectordb_bench/config-files/k8s_local_fourdb.yml`. That config runs the built-in `Performance768D1M` case (Cohere dataset, 1M vectors @ 768 dim) for every backend. Pre-download the dataset once with `./prepare_datasets.sh [target_dir]` to pin it to durable storage, then follow the Helm/pod workflow documented in [docs/k8s_vald_benchmark.md](docs/k8s_vald_benchmark.md).
 
 ## How does it work?
 ### Result Page
