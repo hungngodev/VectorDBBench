@@ -1,4 +1,4 @@
-MilvusAutoIndex:
+milvusautoindex:
   - db_label: k8s-milvus
     task_label: milvus-k8s-benchmark
     case_type: Performance768D1M
@@ -10,7 +10,7 @@ MilvusAutoIndex:
     search_serial: true
     search_concurrent: true
 
-QdrantLocal:
+qdrantlocal:
   - db_label: k8s-qdrant
     task_label: qdrant-k8s-benchmark
     case_type: Performance768D1M
@@ -26,7 +26,7 @@ QdrantLocal:
     search_serial: true
     search_concurrent: true
 
-Weaviate:
+weaviate:
   - db_label: k8s-weaviate
     task_label: weaviate-k8s-benchmark
     case_type: Performance768D1M
@@ -43,7 +43,7 @@ Weaviate:
     search_serial: true
     search_concurrent: true
 
-Vald:
+vald:
   - db_label: k8s-vald
     task_label: vald-k8s-benchmark
     case_type: Performance768D1M
