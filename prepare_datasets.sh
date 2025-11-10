@@ -24,7 +24,7 @@ from vectordb_bench.backend.filter import non_filter
 # Add any datasets you want cached locally before benchmarking.
 targets = [
     Dataset.COHERE.manager(1_000_000),  # Cohere 1M (Performance768D1M)
-    Dataset.SIFT.manager(1_000_000),    # SIFT 1M x 128 (for alternative L2 workloads)
+    Dataset.SIFT.manager(500_000),      # SIFT 500K x 128 (small L2 workload)
     Dataset.OPENAI.manager(500_000),    # OpenAI 500K x 1536 (for larger-dim cosine cases)
 ]
 
