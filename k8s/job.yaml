@@ -8,7 +8,8 @@ spec:
       restartPolicy: Never
       containers:
         - name: bench
-          image: REPLACE_WITH_YOUR_IMAGE
+          image: hungngodev/vectordbbench:latest
+          imagePullPolicy: Always # optional but forces new pulls
           env:
             - name: DATASET_LOCAL_DIR
               value: /opt/vdb/datasets
