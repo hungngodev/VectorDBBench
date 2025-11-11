@@ -459,6 +459,24 @@ make format
 
 To benchmark Milvus, Qdrant, Weaviate, and Vald inside a Kubernetes cluster, use the new Vald adapter (`vectordbbench Vald`) together with the sample configuration at `vectordb_bench/config-files/k8s_local_fourdb.yml`. That config runs the built-in `Performance768D1M` case (Cohere dataset, 1M vectors @ 768 dim) for every backend. Pre-download the dataset once with `./prepare_datasets.sh [target_dir]` to pin it to durable storage, then follow the Helm/pod workflow documented in [docs/k8s_vald_benchmark.md](docs/k8s_vald_benchmark.md).
 
+If you prefer to run the benchmark **inside** your Kubernetes cluster (no port-forwarding required), build the included container and launch the job manifest:
+
+```bash
+# Build & push the benchmark image
+docker build -t <registry>/vectordbbench:latest .
+docker push <registry>/vectordbbench:latest
+
+# Expose the benchmark config to the cluster
+kubectl create configmap bench-config \
+  --from-file vectordb_bench/config-files/k8s_local_fourdb.yml
+
+# Update k8s/job.yaml to reference your image, then run:
+kubectl apply -f k8s/job.yaml
+kubectl logs -f job/vectordb-bench
+```
+
+The job container runs `prepare_datasets.sh` inside the cluster, then executes `run_vector_benchmark.sh` so all database endpoints (`*.marco.svc.cluster.local`) are reachable without extra networking setup.
+
 ## How does it work?
 ### Result Page
 ![image](https://github.com/zilliztech/VectorDBBench/assets/105927039/8a981327-c1c6-4796-8a85-c86154cb5472)

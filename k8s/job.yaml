@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vectordb-bench
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bench
+          image: REPLACE_WITH_YOUR_IMAGE
+          env:
+            - name: DATASET_LOCAL_DIR
+              value: /opt/vdb/datasets
+          volumeMounts:
+            - name: bench-config
+              mountPath: /opt/vdb/vectordb_bench/config-files/k8s_local_fourdb.yml
+              subPath: k8s_local_fourdb.yml
+      volumes:
+        - name: bench-config
+          configMap:
+            name: bench-config
+  backoffLimit: 0

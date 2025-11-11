@@ -1,18 +1,16 @@
-FROM python:3.11-buster as builder-image
+FROM python:3.11-slim
 
-RUN apt-get update
+WORKDIR /opt/vdb
 
-COPY install/requirements_py3.11.txt .
-RUN pip3 install -U pip
-RUN pip3 install --no-cache-dir -r requirements_py3.11.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+COPY . /opt/vdb
 
-FROM python:3.11-slim-buster
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install --upgrade pip && \
+    pip install -e '.[vald]'
 
-COPY --from=builder-image /usr/local/bin /usr/local/bin
-COPY --from=builder-image /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+ENV DATASET_LOCAL_DIR=/opt/vdb/datasets
 
-WORKDIR /opt/code
-COPY . .
-ENV PYTHONPATH /opt/code
-
-ENTRYPOINT ["python3", "-m", "vectordb_bench"]
+ENTRYPOINT ["bash", "-lc"]
+CMD ["prepare_datasets.sh ${DATASET_LOCAL_DIR} && run_vector_benchmark.sh vectordb_bench/config-files/k8s_local_fourdb.yml"]
