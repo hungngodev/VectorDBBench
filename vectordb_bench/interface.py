@@ -42,6 +42,7 @@ class BenchMarkRunner:
     def __init__(self):
         self.running_task: TaskRunner | None = None
         self.latest_error: str | None = None
+        self.receive_conn: Connection | None = None
         self.drop_old: bool = True
         # set default data source by ENV
         if config.DATASET_SOURCE.upper() == "ALIYUNOSS":
