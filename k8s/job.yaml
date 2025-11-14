@@ -17,8 +17,20 @@ spec:
             - name: bench-config
               mountPath: /opt/vdb/vectordb_bench/config-files/k8s_local_fourdb.yml
               subPath: k8s_local_fourdb.yml
+            - name: dataset-storage
+              mountPath: /opt/vdb/datasets
+            - name: results-storage
+              mountPath: /opt/vdb/vectordb_bench/results
       volumes:
         - name: bench-config
           configMap:
             name: bench-config
+        - name: dataset-storage
+          hostPath:
+            path: /mnt/nfs/home/hmngo/scratch/datasets
+            type: DirectoryOrCreate
+        - name: results-storage
+          hostPath:
+            path: /mnt/nfs/home/hmngo/scratch/vdb_results
+            type: DirectoryOrCreate
   backoffLimit: 0

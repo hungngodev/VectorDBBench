@@ -711,6 +711,59 @@ def ZillizAutoIndex(**parameters: Unpack[ZillizTypedDict]):
 
 That's it! You have successfully added a new DB client to the vectordb_bench project.
 
+## Running the Benchmark inside Kubernetes
+Running VectorDBBench inside the cluster removes Slurm host constraints and ensures every database is exercised through the same in-cluster network path. The repository ships with `k8s/job.yaml`, which mounts a benchmark config (for example `vectordb_bench/config-files/k8s_local_fourdb.yml`) and runs `prepare_datasets.sh` followed by `run_vector_benchmark.sh`.
+
+### 1. Build and push the image
+Build the container from the repo root and push it to a registry that your cluster can pull from (Docker Hub shown below):
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t <dockerhub-username>/vectordbbench:latest \
+  --push .
+```
+
+### 2. Create/refresh the ConfigMap
+The job expects the configuration file to be provided by a ConfigMap named `bench-config`:
+```bash
+kubectl create configmap bench-config \
+  --from-file=vectordb_bench/config-files/k8s_local_fourdb.yml \
+  --namespace <namespace> \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### 3. Apply the job and watch logs
+Update `k8s/job.yaml` so the `image` field references the tag you just pushed, then:
+```bash
+kubectl apply -f k8s/job.yaml
+kubectl logs -f job/vectordb-bench
+```
+Datasets are cached in `/opt/vdb/datasets` inside the container; per-database results are written to `/opt/vdb/vectordb_bench/results/<DB>/result_*.json`.
+By default the manifest mounts host paths:
+
+| Mount inside pod | Host path (editable) | Purpose                          |
+|------------------|----------------------|----------------------------------|
+| `/opt/vdb/datasets` | `/mnt/nfs/home/hmngo/scratch/datasets` | Persist shared dataset downloads |
+| `/opt/vdb/vectordb_bench/results` | `/mnt/nfs/home/hmngo/scratch/vdb_results` | Persist benchmark JSON outputs |
+
+### 4. Retrieve the results
+Because a completed pod cannot be `kubectl exec`’d, copy the results while the container is still running (append `&& sleep 3600` to the job command if you need extra time), or mount a PersistentVolume at `/opt/vdb/vectordb_bench/results` so the JSON files survive after the pod finishes. Example for the first approach:
+```bash
+POD=$(kubectl get pods -l job-name=vectordb-bench -o jsonpath='{.items[0].metadata.name}')
+kubectl cp $POD:/opt/vdb/vectordb_bench/results ./results
+kubectl delete job vectordb-bench
+```
+
+### 5. Iterating on code
+Whenever you modify the repo, rebuild/push the image and reapply the job:
+```bash
+docker buildx build --platform linux/amd64 -t <dockerhub-username>/vectordbbench:latest --push .
+kubectl delete job vectordb-bench --ignore-not-found
+kubectl apply -f k8s/job.yaml
+```
+
+This workflow keeps Milvus, Qdrant, Weaviate, and Vald runs entirely inside Kubernetes with consistent networking and no manual port forwarding.
+
 ## Rules
 ### Installation
 The system under test can be installed in any form to achieve optimal performance. This includes but is not limited to binary deployment, Docker, and cloud services.
