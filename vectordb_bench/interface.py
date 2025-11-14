@@ -61,6 +61,8 @@ class BenchMarkRunner:
     def run(self, tasks: list[TaskConfig], task_label: str | None = None) -> bool:
         """run all the tasks in the configs, write one result into the path"""
         self.latest_error = ""
+        # Consume any pending success/error signals so completed runs get cleared
+        self._try_get_signal()
         if self.running_task is not None:
             log.warning("There're still tasks running in the background")
             return False
