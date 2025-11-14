@@ -457,25 +457,23 @@ make format
 
 ### Kubernetes benchmark quick start
 
-To benchmark Milvus, Qdrant, Weaviate, and Vald inside a Kubernetes cluster, use the new Vald adapter (`vectordbbench Vald`) together with the sample configuration at `vectordb_bench/config-files/k8s_local_fourdb.yml`. That config runs the built-in `Performance768D1M` case (Cohere dataset, 1M vectors @ 768 dim) for every backend. Pre-download the dataset once with `./prepare_datasets.sh [target_dir]` to pin it to durable storage, then follow the Helm/pod workflow documented in [docs/k8s_vald_benchmark.md](docs/k8s_vald_benchmark.md).
+Benchmarks for Milvus, Qdrant, Weaviate, and Vald can now run entirely inside the cluster via `k8s/job.yaml`. Keep it short:
 
-If you prefer to run the benchmark **inside** your Kubernetes cluster (no port-forwarding required), build the included container and launch the job manifest:
+1. **Build & push**  
+   `docker buildx build --platform linux/amd64 -t <registry>/vectordbbench:latest --push .`
 
-```bash
-# Build & push the benchmark image
-docker build -t <registry>/vectordbbench:latest .
-docker push <registry>/vectordbbench:latest
+2. **Publish the config**  
+   `kubectl create configmap bench-config --from-file=vectordb_bench/config-files/k8s_local_fourdb.yml --dry-run=client -o yaml | kubectl apply -f -`
 
-# Expose the benchmark config to the cluster
-kubectl create configmap bench-config \
-  --from-file vectordb_bench/config-files/k8s_local_fourdb.yml
+3. **Run the job**  
+   Update the manifest’s `image`, then `kubectl apply -f k8s/job.yaml` and watch with `kubectl logs -f job/vectordb-bench`.
 
-# Update k8s/job.yaml to reference your image, then run:
-kubectl apply -f k8s/job.yaml
-kubectl logs -f job/vectordb-bench
-```
+4. **Persistent data** (handled by the manifest)  
+   `/opt/vdb/datasets` → host `/mnt/nfs/home/hmngo/scratch/datasets`  
+   `/opt/vdb/vectordb_bench/results` → host `/mnt/nfs/home/hmngo/scratch/vdb_results`
 
-The job container runs `prepare_datasets.sh` inside the cluster, then executes `run_vector_benchmark.sh` so all database endpoints (`*.marco.svc.cluster.local`) are reachable without extra networking setup.
+5. **Grab results / rerun**  
+   Copy JSONs from the host folder or `kubectl cp` while the pod is still running. On code changes, rebuild/push, `kubectl delete job vectordb-bench --ignore-not-found`, and apply again.
 
 ## How does it work?
 ### Result Page
@@ -710,59 +708,6 @@ def ZillizAutoIndex(**parameters: Unpack[ZillizTypedDict]):
 > - milvus: vectordb_bench/backend/clients/milvus/cli.py
 
 That's it! You have successfully added a new DB client to the vectordb_bench project.
-
-## Running the Benchmark inside Kubernetes
-Running VectorDBBench inside the cluster removes Slurm host constraints and ensures every database is exercised through the same in-cluster network path. The repository ships with `k8s/job.yaml`, which mounts a benchmark config (for example `vectordb_bench/config-files/k8s_local_fourdb.yml`) and runs `prepare_datasets.sh` followed by `run_vector_benchmark.sh`.
-
-### 1. Build and push the image
-Build the container from the repo root and push it to a registry that your cluster can pull from (Docker Hub shown below):
-```bash
-docker buildx build \
-  --platform linux/amd64 \
-  -t <dockerhub-username>/vectordbbench:latest \
-  --push .
-```
-
-### 2. Create/refresh the ConfigMap
-The job expects the configuration file to be provided by a ConfigMap named `bench-config`:
-```bash
-kubectl create configmap bench-config \
-  --from-file=vectordb_bench/config-files/k8s_local_fourdb.yml \
-  --namespace <namespace> \
-  --dry-run=client -o yaml | kubectl apply -f -
-```
-
-### 3. Apply the job and watch logs
-Update `k8s/job.yaml` so the `image` field references the tag you just pushed, then:
-```bash
-kubectl apply -f k8s/job.yaml
-kubectl logs -f job/vectordb-bench
-```
-Datasets are cached in `/opt/vdb/datasets` inside the container; per-database results are written to `/opt/vdb/vectordb_bench/results/<DB>/result_*.json`.
-By default the manifest mounts host paths:
-
-| Mount inside pod | Host path (editable) | Purpose                          |
-|------------------|----------------------|----------------------------------|
-| `/opt/vdb/datasets` | `/mnt/nfs/home/hmngo/scratch/datasets` | Persist shared dataset downloads |
-| `/opt/vdb/vectordb_bench/results` | `/mnt/nfs/home/hmngo/scratch/vdb_results` | Persist benchmark JSON outputs |
-
-### 4. Retrieve the results
-Because a completed pod cannot be `kubectl exec`’d, copy the results while the container is still running (append `&& sleep 3600` to the job command if you need extra time), or mount a PersistentVolume at `/opt/vdb/vectordb_bench/results` so the JSON files survive after the pod finishes. Example for the first approach:
-```bash
-POD=$(kubectl get pods -l job-name=vectordb-bench -o jsonpath='{.items[0].metadata.name}')
-kubectl cp $POD:/opt/vdb/vectordb_bench/results ./results
-kubectl delete job vectordb-bench
-```
-
-### 5. Iterating on code
-Whenever you modify the repo, rebuild/push the image and reapply the job:
-```bash
-docker buildx build --platform linux/amd64 -t <dockerhub-username>/vectordbbench:latest --push .
-kubectl delete job vectordb-bench --ignore-not-found
-kubectl apply -f k8s/job.yaml
-```
-
-This workflow keeps Milvus, Qdrant, Weaviate, and Vald runs entirely inside Kubernetes with consistent networking and no manual port forwarding.
 
 ## Rules
 ### Installation

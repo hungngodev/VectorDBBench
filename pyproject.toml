@@ -81,7 +81,7 @@ all = [
 
 qdrant          = [ "qdrant-client" ]
 pinecone        = [ "pinecone-client" ]
-weaviate        = [ "weaviate-client" ]
+weaviate        = [ "weaviate-client>=3,<4" ]
 elastic         = [ "elasticsearch" ]
 # For elastic and aliyun_elasticsearch
 
