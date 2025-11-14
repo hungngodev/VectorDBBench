@@ -31,6 +31,6 @@ spec:
             type: DirectoryOrCreate
         - name: results-storage
           hostPath:
-            path: /mnt/nfs/home/hmngo/scratch/vdb_results
+            path: /mnt/nfs/home/hmngo/work1/hmngo/vdb_results
             type: DirectoryOrCreate
   backoffLimit: 0

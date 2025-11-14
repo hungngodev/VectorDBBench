@@ -470,7 +470,7 @@ Benchmarks for Milvus, Qdrant, Weaviate, and Vald can now run entirely inside th
 
 4. **Persistent data** (handled by the manifest)  
    `/opt/vdb/datasets` → host `/mnt/nfs/home/hmngo/scratch/datasets`  
-   `/opt/vdb/vectordb_bench/results` → host `/mnt/nfs/home/hmngo/scratch/vdb_results`
+   `/opt/vdb/vectordb_bench/results` → host `/mnt/nfs/home/hmngo/work1/hmngo/vdb_results`
 
 5. **Grab results / rerun**  
    Copy JSONs from the host folder or `kubectl cp` while the pod is still running. On code changes, rebuild/push, `kubectl delete job vectordb-bench --ignore-not-found`, and apply again.
