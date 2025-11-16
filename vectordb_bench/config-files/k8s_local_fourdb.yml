@@ -20,7 +20,7 @@ qdrantlocal:
     ef_construct: 256
     hnsw_ef: 256
     k: 10
-    drop_old: true
+    drop_old: false
     load: true
     search_serial: true
     search_concurrent: true
@@ -31,6 +31,7 @@ weaviate:
     case_type: Performance768D1M
     url: http://weaviate.marco.svc.cluster.local
     api_key: ""
+    no_auth: true
     m: 16
     ef_construction: 256
     ef: 256
