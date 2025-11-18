@@ -475,6 +475,46 @@ Benchmarks for Milvus, Qdrant, Weaviate, and Vald can now run entirely inside th
 5. **Grab results / rerun**  
    Copy JSONs from the host folder or `kubectl cp` while the pod is still running. On code changes, rebuild/push, `kubectl delete job vectordb-bench --ignore-not-found`, and apply again.
 
+### Running each database as separate k8s jobs (no code changes)
+If BatchCli flags are inconvenient, submit one job per database in namespace `marco` using the image you built/pushed (`hungngodev/vectordbbench:latest`). These commands assume the Dockerfile copies the repo to `/opt/vdb`:
+```bash
+# Milvus
+kubectl -n marco delete job vdb-milvus --ignore-not-found
+kubectl -n marco create job vdb-milvus --image=hungngodev/vectordbbench:latest -- \
+  bash -lc "cd /opt/vdb && ./prepare_datasets.sh /opt/vdb/datasets && \
+    vectordbbench milvusautoindex --db-label k8s-milvus --task-label milvus-k8s-benchmark \
+    --case-type Performance768D1M --uri http://milvus.marco.svc.cluster.local:19530 \
+    --k 10 --drop-old --load --search-serial --search-concurrent"
+
+# Qdrant (reuse data to avoid collection drop)
+kubectl -n marco delete job vdb-qdrant --ignore-not-found
+kubectl -n marco create job vdb-qdrant --image=hungngodev/vectordbbench:latest -- \
+  bash -lc "cd /opt/vdb && ./prepare_datasets.sh /opt/vdb/datasets && \
+    vectordbbench qdrantlocal --db-label k8s-qdrant --task-label qdrant-k8s-benchmark \
+    --case-type Performance768D1M --url http://qdrant.marco.svc.cluster.local:6333 \
+    --metric-type COSINE --on-disk False --m 16 --ef-construct 256 --hnsw-ef 256 --k 10 \
+    --skip-drop-old --skip-load --search-serial --search-concurrent"
+
+# Weaviate (no auth)
+kubectl -n marco delete job vdb-weaviate --ignore-not-found
+kubectl -n marco create job vdb-weaviate --image=hungngodev/vectordbbench:latest -- \
+  bash -lc "cd /opt/vdb && ./prepare_datasets.sh /opt/vdb/datasets && \
+    vectordbbench weaviate --db-label k8s-weaviate --task-label weaviate-k8s-benchmark \
+    --case-type Performance768D1M --url http://weaviate.marco.svc.cluster.local \
+    --no-auth --m 16 --ef-construction 256 --ef 256 --metric-type COSINE --k 10 \
+    --drop-old --load --search-serial --search-concurrent"
+
+# Vald (protobuf runtime pinned in the image)
+kubectl -n marco delete job vdb-vald --ignore-not-found
+kubectl -n marco create job vdb-vald --image=hungngodev/vectordbbench:latest -- \
+  bash -lc "cd /opt/vdb && ./prepare_datasets.sh /opt/vdb/datasets && \
+    vectordbbench vald --db-label k8s-vald --task-label vald-k8s-benchmark \
+    --case-type Performance768D1M --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \
+    --use-tls False --batch-size 128 --metric-type COSINE --num 10 --min-num 1 \
+    --wait-for-sync-seconds 10 --k 10 --drop-old --load --search-serial --search-concurrent"
+```
+Tail logs per job with `kubectl -n marco logs -f job/<job-name>`. Results land under your host mounts (`/mnt/nfs/home/hmngo/scratch/datasets` and `/mnt/nfs/home/hmngo/work1/hmngo/vdb_results`).
+
 ## How does it work?
 ### Result Page
 ![image](https://github.com/zilliztech/VectorDBBench/assets/105927039/8a981327-c1c6-4796-8a85-c86154cb5472)
