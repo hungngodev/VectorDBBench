@@ -35,16 +35,20 @@ run_sweep() {
   local idx=1
   for cfg in "${cfgs[@]}"; do
     [ -e "$cfg" ] || continue
-    local base
+    local base job label_arg
     base=$(basename "$cfg")
-    local job="vdb-${db}-${idx}"
+    job="vdb-${db}-${idx}"
+    label_arg="--task-label ${db}-${base%.*}"
     echo "-- ${db} run ${idx}: ${base} -> job/${job}"
     kubectl -n "$NS" delete job "$job" --ignore-not-found
     kubectl -n "$NS" create job "$job" --image="$IMG" -- \
-      bash -lc "cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && ${cmd} --config-file \"${cfg}\""
+      bash -lc "cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && ${cmd} ${label_arg}"
     kubectl -n "$NS" logs -f "job/${job}" || true
     idx=$((idx + 1))
   done
+  if [ ${#cfgs[@]} -eq 0 ]; then
+    echo "No configs in ${cfg_dir}; skipping ${db}."
+  fi
 }
 
 run_sweep milvus "$MILVUS_CFG_DIR" "$MILVUS_CMD"
