@@ -52,10 +52,11 @@ for m in "${milvus_m[@]}"; do
   for ef in "${milvus_ef[@]}"; do
     job="vdb-milvus-${mid}"
     run_job "$job" bash -lc "cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && \
-      vectordbbench milvusautoindex \
+      vectordbbench milvushnsw \
         --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
         --case-type Performance768D1M --uri http://milvus.marco.svc.cluster.local:19530 \
-        --m ${m} --ef-search ${ef} --k 10 --drop-old --load --search-serial --search-concurrent"
+        --m ${m} --ef-search ${ef} --ef-construction ${ef} \
+        --k 10 --drop-old --load --search-serial --search-concurrent"
     mid=$((mid+1))
   done
 done
