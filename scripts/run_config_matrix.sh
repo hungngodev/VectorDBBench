@@ -14,6 +14,7 @@ run_job() {
   echo "-- job/${job}"
   kubectl -n "$NS" delete job "$job" --ignore-not-found
   kubectl -n "$NS" create job "$job" --image="$IMG" -- "$@"
+  kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}" || true
   kubectl -n "$NS" logs -f "job/${job}" || true
 }
 
