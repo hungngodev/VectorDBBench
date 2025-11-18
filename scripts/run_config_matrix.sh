@@ -8,12 +8,36 @@ set -euo pipefail
 NS=${NS:-marco}
 IMG=${IMG:-hungngodev/vectordbbench:latest}
 DATA_DIR=${DATA_DIR:-/opt/vdb/datasets}
+# Resource requests/limits for benchmark jobs (fits 72 CPU / ~188Gi nodes)
+CPU=${CPU:-16}
+MEM=${MEM:-64Gi}
 
 run_job() {
   local job="$1"; shift
+  local cmd="$*"
   echo "-- job/${job}"
   kubectl -n "$NS" delete job "$job" --ignore-not-found
-  kubectl -n "$NS" create job "$job" --image="$IMG" -- "$@"
+  cat <<EOF | kubectl -n "$NS" apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${job}
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: bench
+        image: ${IMG}
+        command: ["bash","-lc","cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && ${cmd}"]
+        resources:
+          requests:
+            cpu: "${CPU}"
+            memory: "${MEM}"
+          limits:
+            cpu: "${CPU}"
+            memory: "${MEM}"
+EOF
   kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}" || true
   kubectl -n "$NS" logs -f "job/${job}" || true
 }
