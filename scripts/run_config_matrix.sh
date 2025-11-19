@@ -8,6 +8,12 @@ set -euo pipefail
 NS=${NS:-marco}
 IMG=${IMG:-hungngodev/vectordbbench:latest}
 DATA_DIR=${DATA_DIR:-/opt/vdb/datasets}
+# If set, mount a host/NFS path into the pod for datasets to avoid re-downloading each job.
+# Example: HOST_DATA_DIR=/mnt/nfs/home/hmngo/work1/hmngo/datasets
+HOST_DATA_DIR=${HOST_DATA_DIR:-}
+# If set, mount a host/NFS path for results so outputs persist and are shared.
+# Example: HOST_RESULTS_DIR=/mnt/nfs/home/hmngo/work1/hmngo/vdb_results
+HOST_RESULTS_DIR=${HOST_RESULTS_DIR:-}
 # Resource requests/limits for benchmark jobs (fits 72 CPU / ~188Gi nodes)
 CPU=${CPU:-16}
 MEM=${MEM:-64Gi}
@@ -15,6 +21,20 @@ MEM=${MEM:-64Gi}
 run_job() {
   local job="$1"; shift
   local cmd="$*"
+  local volume_mounts=""
+  local volumes=""
+  if [[ -n "${HOST_DATA_DIR}" ]]; then
+    volume_mounts+="        - name: datasets\n          mountPath: ${DATA_DIR}\n"
+    volumes+="      - name: datasets\n        hostPath:\n          path: ${HOST_DATA_DIR}\n"
+  fi
+  if [[ -n "${HOST_RESULTS_DIR}" ]]; then
+    volume_mounts+="        - name: results\n          mountPath: /opt/vdb/vectordb_bench/results\n"
+    volumes+="      - name: results\n        hostPath:\n          path: ${HOST_RESULTS_DIR}\n"
+  fi
+  if [[ -n "${volume_mounts}" ]]; then
+    volume_mounts="        volumeMounts:\n${volume_mounts%$'\\n'}"
+    volumes="      volumes:\n${volumes%$'\\n'}"
+  fi
   echo "-- job/${job}"
   kubectl -n "$NS" delete job "$job" --ignore-not-found
   cat <<EOF | kubectl -n "$NS" apply -f -
@@ -25,7 +45,6 @@ metadata:
 spec:
   template:
     spec:
-      restartPolicy: Never
       containers:
       - name: bench
         image: ${IMG}
@@ -37,6 +56,9 @@ spec:
           limits:
             cpu: "${CPU}"
             memory: "${MEM}"
+${volume_mounts}
+      restartPolicy: Never
+${volumes}
 EOF
   kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}" || true
   kubectl -n "$NS" logs -f "job/${job}" || true
@@ -51,7 +73,7 @@ mid=1
 for m in "${milvus_m[@]}"; do
   for ef in "${milvus_ef[@]}"; do
     job="vdb-milvus-${mid}"
-    run_job "$job" bash -lc "cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && \
+    run_job "$job" bash -lc "cd /opt/vdb && \
       vectordbbench milvushnsw \
         --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
         --case-type Performance768D1M --uri http://milvus.marco.svc.cluster.local:19530 \
@@ -68,7 +90,7 @@ qid=1
 for m in "${qdrant_m[@]}"; do
   for ef in "${qdrant_ef[@]}"; do
     job="vdb-qdrant-${qid}"
-    run_job "$job" bash -lc "cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && \
+    run_job "$job" bash -lc "cd /opt/vdb && \
       vectordbbench qdrantlocal \
         --db-label k8s-qdrant --task-label qdrant-m${m}-ef${ef} \
         --case-type Performance768D1M --url http://qdrant.marco.svc.cluster.local:6333 \
@@ -85,7 +107,7 @@ wid=1
 for m in "${weav_m[@]}"; do
   for ef in "${weav_ef[@]}"; do
     job="vdb-weaviate-${wid}"
-    run_job "$job" bash -lc "cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && \
+    run_job "$job" bash -lc "cd /opt/vdb && \
       vectordbbench weaviate \
         --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
         --case-type Performance768D1M --url http://weaviate.marco.svc.cluster.local \
@@ -100,7 +122,7 @@ vald_num=(8 12 16 20)
 vid=1
 for num in "${vald_num[@]}"; do
   job="vdb-vald-${vid}"
-  run_job "$job" bash -lc "cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && \
+  run_job "$job" bash -lc "cd /opt/vdb && \
     vectordbbench vald \
       --db-label k8s-vald --task-label vald-num${num} \
       --case-type Performance768D1M --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \
