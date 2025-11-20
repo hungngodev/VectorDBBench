@@ -88,16 +88,21 @@ done
 # Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
 qdrant_m=(24)
 qdrant_ef=(256)
+DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-false}
 qid=1
 for m in "${qdrant_m[@]}"; do
   for ef in "${qdrant_ef[@]}"; do
     job="vdb-qdrant-${qid}"
+    qdrant_drop_flag=""
+    if [[ "${DROP_OLD_QDRANT}" == "true" ]]; then
+      qdrant_drop_flag="--drop-old"
+    fi
     run_job "$job" bash -lc "cd /opt/vdb && \
       vectordbbench qdrantlocal \
         --db-label k8s-qdrant --task-label qdrant-m${m}-ef${ef} \
         --case-type Performance768D1M --url http://qdrant.marco.svc.cluster.local:6333 \
         --metric-type COSINE --on-disk False --m ${m} --ef-construct ${ef} --hnsw-ef ${ef} --k 10 \
-        --drop-old --load --search-serial --search-concurrent"
+        ${qdrant_drop_flag} --load --search-serial --search-concurrent"
     qid=$((qid+1))
   done
 done
