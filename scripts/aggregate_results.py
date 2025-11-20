@@ -44,13 +44,13 @@ def main():
         "db",
         "task_label",
         "file",
-        "count",
+        "max_load_count",
         "insert_duration",
         "optimize_duration",
         "load_duration",
         "qps",
-        "latency_p99",
-        "latency_p95",
+        "serial_latency_p99",
+        "serial_latency_p95",
         "recall",
     ]
 
@@ -64,20 +64,23 @@ def main():
         except Exception as e:
             print(f"Skip {path}: {e}")
             continue
-        row = {
-            "db": db,
-            "task_label": task_label,
-            "file": str(path),
-            "count": data.get("count"),
-            "insert_duration": data.get("insert_duration"),
-            "optimize_duration": data.get("optimize_duration"),
-            "load_duration": data.get("load_duration") or data.get("load_dur"),
-            "qps": data.get("qps"),
-            "latency_p99": data.get("latency_p99"),
-            "latency_p95": data.get("latency_p95"),
-            "recall": data.get("recall"),
-        }
-        rows.append(row)
+        results = data.get("results") or []
+        for res in results:
+            metrics = res.get("metrics", {})
+            row = {
+                "db": db,
+                "task_label": task_label,
+                "file": str(path),
+                "max_load_count": metrics.get("max_load_count"),
+                "insert_duration": metrics.get("insert_duration"),
+                "optimize_duration": metrics.get("optimize_duration"),
+                "load_duration": metrics.get("load_duration") or metrics.get("load_dur"),
+                "qps": metrics.get("qps"),
+                "serial_latency_p99": metrics.get("serial_latency_p99") or metrics.get("latency_p99"),
+                "serial_latency_p95": metrics.get("serial_latency_p95") or metrics.get("latency_p95"),
+                "recall": metrics.get("recall"),
+            }
+            rows.append(row)
 
     with open(args.output, "w", newline="") as out:
         writer = csv.DictWriter(out, fieldnames=fields)

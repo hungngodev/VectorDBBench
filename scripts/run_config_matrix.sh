@@ -14,6 +14,8 @@ HOST_DATA_DIR=${HOST_DATA_DIR:-}
 # If set, mount a host/NFS path for results so outputs persist and are shared.
 # Example: HOST_RESULTS_DIR=/mnt/nfs/home/hmngo/work1/hmngo/vdb_results
 HOST_RESULTS_DIR=${HOST_RESULTS_DIR:-}
+# Protobuf version for Vald (must match gencode major); upgrade inside job if needed.
+PROTOBUF_VERSION=${PROTOBUF_VERSION:-6.31.1}
 # Resource requests/limits for benchmark jobs (fits 72 CPU / ~188Gi nodes)
 CPU=${CPU:-16}
 MEM=${MEM:-64Gi}
@@ -66,9 +68,9 @@ EOF
 
 echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 
-# Milvus matrix (~12 jobs: 4x3)
-milvus_m=(16 24 32 40)
-milvus_ef=(128 256 384)
+# Milvus matrix (trimmed for quick test)
+milvus_m=(24)
+milvus_ef=(256)
 mid=1
 for m in "${milvus_m[@]}"; do
   for ef in "${milvus_ef[@]}"; do
@@ -83,9 +85,9 @@ for m in "${milvus_m[@]}"; do
   done
 done
 
-# Qdrant matrix (~12 jobs: 4x3; drop_old/load enabled by default)
-qdrant_m=(16 24 32 40)
-qdrant_ef=(128 256 384)
+# Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
+qdrant_m=(24)
+qdrant_ef=(256)
 qid=1
 for m in "${qdrant_m[@]}"; do
   for ef in "${qdrant_ef[@]}"; do
@@ -100,9 +102,9 @@ for m in "${qdrant_m[@]}"; do
   done
 done
 
-# Weaviate matrix (~12 jobs: 4x3; no auth)
-weav_m=(16 24 32 40)
-weav_ef=(128 256 384)
+# Weaviate matrix (trimmed for quick test; no auth)
+weav_m=(24)
+weav_ef=(256)
 wid=1
 for m in "${weav_m[@]}"; do
   for ef in "${weav_ef[@]}"; do
@@ -117,12 +119,13 @@ for m in "${weav_m[@]}"; do
   done
 done
 
-# Vald matrix (~4 jobs; requires protobuf runtime pinned)
-vald_num=(8 12 16 20)
+# Vald matrix (trimmed for quick test; requires protobuf runtime pinned)
+vald_num=(12)
 vid=1
 for num in "${vald_num[@]}"; do
   job="vdb-vald-${vid}"
   run_job "$job" bash -lc "cd /opt/vdb && \
+    python -m pip install -U protobuf==${PROTOBUF_VERSION} >/tmp/pip-vald.log 2>&1 && \
     vectordbbench vald \
       --db-label k8s-vald --task-label vald-num${num} \
       --case-type Performance768D1M --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \

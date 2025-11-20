@@ -19,6 +19,6 @@ echo "Aggregating results into ${OUTPUT} ..."
 python "$(dirname "$0")/aggregate_results.py" --root "${RESULT_ROOT}" --output "${OUTPUT}"
 
 echo "Cleaning up individual result JSONs under ${RESULT_ROOT} ..."
-find "${RESULT_ROOT}" -name "result_*.json" -delete
+find "${RESULT_ROOT}" -name "result_*.json" -exec rm -f {} + 2>/dev/null || true
 
 echo "Done. Aggregated CSV: ${OUTPUT}"
