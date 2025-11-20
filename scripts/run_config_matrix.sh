@@ -23,14 +23,6 @@ MEM=${MEM:-64Gi}
 run_job() {
   local job="$1"; shift
   local cmd="$*"
-  local datasets_volume_block="      - name: datasets\n        emptyDir: {}"
-  local results_volume_block="      - name: results\n        emptyDir: {}"
-  if [[ -n "${HOST_DATA_DIR}" ]]; then
-    datasets_volume_block="      - name: datasets\n        hostPath:\n          path: ${HOST_DATA_DIR}"
-  fi
-  if [[ -n "${HOST_RESULTS_DIR}" ]]; then
-    results_volume_block="      - name: results\n        hostPath:\n          path: ${HOST_RESULTS_DIR}"
-  fi
   echo "-- job/${job}"
   kubectl -n "$NS" delete job "$job" --ignore-not-found
   cat <<EOF | kubectl -n "$NS" apply -f -
@@ -59,8 +51,16 @@ spec:
           mountPath: /opt/vdb/vectordb_bench/results
       restartPolicy: Never
       volumes:
-${datasets_volume_block}
-${results_volume_block}
+$(if [[ -n "${HOST_DATA_DIR}" ]]; then
+  printf "      - name: datasets\n        hostPath:\n          path: %s\n" "${HOST_DATA_DIR}"
+else
+  printf "      - name: datasets\n        emptyDir: {}\n"
+fi)
+$(if [[ -n "${HOST_RESULTS_DIR}" ]]; then
+  printf "      - name: results\n        hostPath:\n          path: %s\n" "${HOST_RESULTS_DIR}"
+else
+  printf "      - name: results\n        emptyDir: {}\n"
+fi)
 EOF
   kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}" || true
   kubectl -n "$NS" logs -f "job/${job}" || true
