@@ -149,17 +149,32 @@ class ValdLocal(VectorDB):
             search_config.epsilon = params["epsilon"]
 
         search_timeout = params.get("timeout", timeout if timeout is not None else self.config.timeout)
+        rpc_timeout = self.config.timeout
         if search_timeout is not None:
             search_config.timeout = int(search_timeout)
+            rpc_timeout = search_timeout
 
-        try:
-            response = self._search_stub.Search(
-                payload_pb2.Search.Request(vector=[float(x) for x in query], config=search_config),
-                timeout=self.config.timeout,
-            )
-        except RpcError as exc:  # pragma: no cover - network failure path
-            log.warning("Vald search failed: %s", exc)
-            raise
+        attempts = 3
+        last_error: Exception | None = None
+        for i in range(attempts):
+            try:
+                response = self._search_stub.Search(
+                    payload_pb2.Search.Request(vector=[float(x) for x in query], config=search_config),
+                    timeout=rpc_timeout,
+                )
+                break
+            except RpcError as exc:  # pragma: no cover - network failure path
+                last_error = exc
+                log.warning("Vald search failed (attempt %d/%d): %s", i + 1, attempts, exc)
+                time.sleep(0.1)
+            except Exception as exc:  # pragma: no cover - unexpected failure path
+                last_error = exc
+                log.warning("Unexpected Vald search error (attempt %d/%d): %s", i + 1, attempts, exc)
+                time.sleep(0.1)
+        else:
+            # No successful attempts; fail quietly to avoid crashing the runner.
+            log.warning("Vald search giving up after %d attempts: %s", attempts, last_error)
+            return []
 
         hits: list[int] = []
         for result in response.results:
