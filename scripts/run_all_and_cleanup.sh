@@ -12,10 +12,10 @@ IMG=${IMG:-hungngodev/vectordbbench:latest}
 RESULT_ROOT=${RESULT_ROOT:-/mnt/nfs/home/hmngo/work1/hmngo/vdb_results}
 OUTPUT=${OUTPUT:-all_results.csv}
 # Default knobs for flaky clients; can still be overridden via env when invoking this script.
-DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-false}
-VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-30}
-VALD_TIMEOUT=${VALD_TIMEOUT:-180}
-VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1,5,10,20"}
+DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
+VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
+VALD_TIMEOUT=${VALD_TIMEOUT:-300}
+VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1,5,10"}
 
 echo "Running matrix sweeps with scripts/run_config_matrix.sh ..."
 bash "$(dirname "$0")/run_config_matrix.sh"

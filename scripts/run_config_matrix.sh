@@ -20,9 +20,9 @@ PROTOBUF_VERSION=${PROTOBUF_VERSION:-6.31.1}
 CPU=${CPU:-16}
 MEM=${MEM:-64Gi}
 # Vald tuning (timeouts/concurrency) to avoid empty results/timeouts under heavy load.
-VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-30}
-VALD_TIMEOUT=${VALD_TIMEOUT:-180}
-VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1,5,10,20"}
+VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
+VALD_TIMEOUT=${VALD_TIMEOUT:-300}
+VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1,5,10"}
 
 run_job() {
   local job="$1"; shift
@@ -92,13 +92,13 @@ done
 # Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
 qdrant_m=(24)
 qdrant_ef=(256)
-DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-false}
+DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
 qid=1
 for m in "${qdrant_m[@]}"; do
   for ef in "${qdrant_ef[@]}"; do
     job="vdb-qdrant-${qid}"
-    qdrant_drop_flag="--skip-drop-old"
-    [[ "${DROP_OLD_QDRANT}" == "true" ]] && qdrant_drop_flag="--drop-old"
+    qdrant_drop_flag="--drop-old"
+    [[ "${DROP_OLD_QDRANT}" == "false" ]] && qdrant_drop_flag="--skip-drop-old"
     run_job "$job" bash -lc "cd /opt/vdb && \
       vectordbbench qdrantlocal \
         --db-label k8s-qdrant --task-label qdrant-m${m}-ef${ef} \
