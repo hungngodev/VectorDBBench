@@ -19,6 +19,10 @@ PROTOBUF_VERSION=${PROTOBUF_VERSION:-6.31.1}
 # Resource requests/limits for benchmark jobs (fits 72 CPU / ~188Gi nodes)
 CPU=${CPU:-16}
 MEM=${MEM:-64Gi}
+# Vald tuning (timeouts/concurrency) to avoid empty results/timeouts under heavy load.
+VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-30}
+VALD_TIMEOUT=${VALD_TIMEOUT:-180}
+VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1,5,10,20"}
 
 run_job() {
   local job="$1"; shift
@@ -93,10 +97,8 @@ qid=1
 for m in "${qdrant_m[@]}"; do
   for ef in "${qdrant_ef[@]}"; do
     job="vdb-qdrant-${qid}"
-    qdrant_drop_flag=""
-    if [[ "${DROP_OLD_QDRANT}" == "true" ]]; then
-      qdrant_drop_flag="--drop-old"
-    fi
+    qdrant_drop_flag="--skip-drop-old"
+    [[ "${DROP_OLD_QDRANT}" == "true" ]] && qdrant_drop_flag="--drop-old"
     run_job "$job" bash -lc "cd /opt/vdb && \
       vectordbbench qdrantlocal \
         --db-label k8s-qdrant --task-label qdrant-m${m}-ef${ef} \
@@ -135,6 +137,8 @@ for num in "${vald_num[@]}"; do
       --db-label k8s-vald --task-label vald-num${num} \
       --case-type Performance768D1M --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \
       --use-tls False --batch-size 128 --metric-type COSINE --num ${num} --min-num 1 \
-      --wait-for-sync-seconds 10 --k 10 --drop-old --load --search-serial --search-concurrent"
+      --wait-for-sync-seconds ${VALD_WAIT_SECONDS} --timeout ${VALD_TIMEOUT} --k 10 \
+      --drop-old --load --search-serial --search-concurrent \
+      --num-concurrency ${VALD_CONCURRENCIES}"
   vid=$((vid+1))
 done
