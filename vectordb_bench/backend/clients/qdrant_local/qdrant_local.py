@@ -69,7 +69,10 @@ class QdrantLocal(VectorDB):
 
         if drop_old and qdrant_collection_exists(client, self.collection_name):
             log.info(f"{self.name} client drop_old collection: {self.collection_name}")
-            client.delete_collection(self.collection_name)
+            try:
+                client.delete_collection(self.collection_name)
+            except Exception as exc:
+                log.warning(f"Qdrant delete_collection failed, continuing: {exc}")
 
         if not qdrant_collection_exists(client, self.collection_name):
             log.info(f"{self.name} create collection: {self.collection_name}")

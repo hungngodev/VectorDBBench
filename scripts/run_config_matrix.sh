@@ -22,7 +22,7 @@ MEM=${MEM:-64Gi}
 # Vald tuning (timeouts/concurrency) to avoid empty results/timeouts under heavy load.
 VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
 VALD_TIMEOUT=${VALD_TIMEOUT:-300}
-VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1,5,10"}
+VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
 
 run_job() {
   local job="$1"; shift

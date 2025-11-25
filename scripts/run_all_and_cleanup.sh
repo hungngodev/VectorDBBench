@@ -15,7 +15,7 @@ OUTPUT=${OUTPUT:-all_results.csv}
 DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
 VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
 VALD_TIMEOUT=${VALD_TIMEOUT:-300}
-VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1,5,10"}
+VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
 
 echo "Running matrix sweeps with scripts/run_config_matrix.sh ..."
 bash "$(dirname "$0")/run_config_matrix.sh"

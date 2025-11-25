@@ -125,12 +125,16 @@ class MultiProcessingSearchRunner:
                         start = time.perf_counter()
                         all_count = sum([r.result()[0] for r in future_iter])
                         latencies = sum([r.result()[2] for r in future_iter], start=[])
-                        latency_p99 = np.percentile(latencies, 99)
-                        latency_p95 = np.percentile(latencies, 95)
-                        latency_avg = np.mean(latencies)
+                        if not latencies:
+                            log.warning("No latencies collected for concurrency=%s, skipping percentile calc", conc)
+                            latency_p99 = latency_p95 = latency_avg = float("nan")
+                        else:
+                            latency_p99 = np.percentile(latencies, 99)
+                            latency_p95 = np.percentile(latencies, 95)
+                            latency_avg = np.mean(latencies)
                         cost = time.perf_counter() - start
 
-                        qps = round(all_count / cost, 4)
+                        qps = round(all_count / cost, 4) if cost > 0 else 0.0
                         conc_num_list.append(conc)
                         conc_qps_list.append(qps)
                         conc_latency_p99_list.append(latency_p99)
