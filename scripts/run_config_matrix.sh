@@ -72,73 +72,85 @@ EOF
 
 echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 
-# Milvus matrix (trimmed for quick test)
-milvus_m=(24)
-milvus_ef=(256)
-mid=1
-for m in "${milvus_m[@]}"; do
-  for ef in "${milvus_ef[@]}"; do
-    job="vdb-milvus-${mid}"
-    run_job "$job" bash -lc "cd /opt/vdb && \
-      vectordbbench milvushnsw \
-        --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
-        --case-type Performance768D1M --uri http://milvus.marco.svc.cluster.local:19530 \
-        --m ${m} --ef-search ${ef} --ef-construction ${ef} \
-        --k 10 --drop-old --load --search-serial --search-concurrent"
-    mid=$((mid+1))
+# Milvus matrix (expanded for diverse testing)
+ENABLE_MILVUS=${ENABLE_MILVUS:-true}
+if [[ "${ENABLE_MILVUS}" == "true" ]]; then
+  milvus_m=(16 24 32 48 64)
+  milvus_ef=(128 256 512)
+  mid=1
+  for m in "${milvus_m[@]}"; do
+    for ef in "${milvus_ef[@]}"; do
+      job="vdb-milvus-${mid}"
+      run_job "$job" bash -lc "cd /opt/vdb && \
+        vectordbbench milvushnsw \
+          --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
+          --case-type Performance768D1M --uri http://milvus.marco.svc.cluster.local:19530 \
+          --m ${m} --ef-search ${ef} --ef-construction ${ef} \
+          --k 10 --drop-old --load --search-serial --search-concurrent"
+      mid=$((mid+1))
+    done
   done
-done
+fi
 
 # Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
-qdrant_m=(24)
-qdrant_ef=(256)
-DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
-qid=1
-for m in "${qdrant_m[@]}"; do
-  for ef in "${qdrant_ef[@]}"; do
-    job="vdb-qdrant-${qid}"
-    qdrant_drop_flag="--drop-old"
-    [[ "${DROP_OLD_QDRANT}" == "false" ]] && qdrant_drop_flag="--skip-drop-old"
-    run_job "$job" bash -lc "cd /opt/vdb && \
-      vectordbbench qdrantlocal \
-        --db-label k8s-qdrant --task-label qdrant-m${m}-ef${ef} \
-        --case-type Performance768D1M --url http://qdrant.marco.svc.cluster.local:6333 \
-        --metric-type COSINE --on-disk False --m ${m} --ef-construct ${ef} --hnsw-ef ${ef} --k 10 \
-        ${qdrant_drop_flag} --load --search-serial --search-concurrent"
-    qid=$((qid+1))
+ENABLE_QDRANT=${ENABLE_QDRANT:-true}
+if [[ "${ENABLE_QDRANT}" == "true" ]]; then
+  qdrant_m=(24)
+  qdrant_ef=(256)
+  DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
+  qid=1
+  for m in "${qdrant_m[@]}"; do
+    for ef in "${qdrant_ef[@]}"; do
+      job="vdb-qdrant-${qid}"
+      qdrant_drop_flag="--drop-old"
+      [[ "${DROP_OLD_QDRANT}" == "false" ]] && qdrant_drop_flag="--skip-drop-old"
+      run_job "$job" bash -lc "cd /opt/vdb && \
+        vectordbbench qdrantlocal \
+          --db-label k8s-qdrant --task-label qdrant-m${m}-ef${ef} \
+          --case-type Performance768D1M --url http://qdrant.marco.svc.cluster.local:6333 \
+          --metric-type COSINE --on-disk False --m ${m} --ef-construct ${ef} --hnsw-ef ${ef} --k 10 \
+          ${qdrant_drop_flag} --load --search-serial --search-concurrent"
+      qid=$((qid+1))
+    done
   done
-done
+fi
 
-# Weaviate matrix (trimmed for quick test; no auth)
-weav_m=(24)
-weav_ef=(256)
-wid=1
-for m in "${weav_m[@]}"; do
-  for ef in "${weav_ef[@]}"; do
-    job="vdb-weaviate-${wid}"
-    run_job "$job" bash -lc "cd /opt/vdb && \
-      vectordbbench weaviate \
-        --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
-        --case-type Performance768D1M --url http://weaviate.marco.svc.cluster.local \
-        --no-auth --m ${m} --ef-construction ${ef} --ef ${ef} --metric-type COSINE --k 10 \
-        --drop-old --load --search-serial --search-concurrent"
-    wid=$((wid+1))
+# Weaviate matrix (expanded for diverse testing; no auth)
+ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
+if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
+  weav_m=(16 24 32 48 64)
+  weav_ef=(128 256 512)
+  wid=1
+  for m in "${weav_m[@]}"; do
+    for ef in "${weav_ef[@]}"; do
+      job="vdb-weaviate-${wid}"
+      run_job "$job" bash -lc "cd /opt/vdb && \
+        vectordbbench weaviate \
+          --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
+          --case-type Performance768D1M --url http://weaviate.marco.svc.cluster.local \
+          --no-auth --m ${m} --ef-construction ${ef} --ef ${ef} --metric-type COSINE --k 10 \
+          --drop-old --load --search-serial --search-concurrent"
+      wid=$((wid+1))
+    done
   done
-done
+fi
 
 # Vald matrix (trimmed for quick test; requires protobuf runtime pinned)
-vald_num=(12)
-vid=1
-for num in "${vald_num[@]}"; do
-  job="vdb-vald-${vid}"
-  run_job "$job" bash -lc "cd /opt/vdb && \
-    python -m pip install -U protobuf==${PROTOBUF_VERSION} >/tmp/pip-vald.log 2>&1 && \
-    vectordbbench vald \
-      --db-label k8s-vald --task-label vald-num${num} \
-      --case-type Performance768D1M --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \
-      --use-tls False --batch-size 128 --metric-type COSINE --num ${num} --min-num 1 \
-      --wait-for-sync-seconds ${VALD_WAIT_SECONDS} --timeout ${VALD_TIMEOUT} --k 10 \
-      --drop-old --load --search-serial --search-concurrent \
-      --num-concurrency ${VALD_CONCURRENCIES}"
-  vid=$((vid+1))
-done
+ENABLE_VALD=${ENABLE_VALD:-true}
+if [[ "${ENABLE_VALD}" == "true" ]]; then
+  vald_num=(12)
+  vid=1
+  for num in "${vald_num[@]}"; do
+    job="vdb-vald-${vid}"
+    run_job "$job" bash -lc "cd /opt/vdb && \
+      python -m pip install -U protobuf==${PROTOBUF_VERSION} >/tmp/pip-vald.log 2>&1 && \
+      vectordbbench vald \
+        --db-label k8s-vald --task-label vald-num${num} \
+        --case-type Performance768D1M --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \
+        --use-tls False --batch-size 128 --metric-type COSINE --num ${num} --min-num 1 \
+        --wait-for-sync-seconds ${VALD_WAIT_SECONDS} --timeout ${VALD_TIMEOUT} --k 10 \
+        --drop-old --load --search-serial --search-concurrent \
+        --num-concurrency ${VALD_CONCURRENCIES}"
+    vid=$((vid+1))
+  done
+fi
