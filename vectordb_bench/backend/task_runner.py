@@ -189,6 +189,7 @@ class CaseRunner(BaseModel):
                         m.conc_latency_p95_list,
                         m.conc_latency_p90_list,
                         m.conc_latency_avg_list,
+                        m.conc_recall_list,
                     ) = search_results
                 if TaskStage.SEARCH_SERIAL in self.config.stages:
                     search_results = self._serial_search()
