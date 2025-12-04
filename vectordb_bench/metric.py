@@ -28,7 +28,9 @@ class Metric:
     conc_qps_list: list[float] = field(default_factory=list)
     conc_latency_p99_list: list[float] = field(default_factory=list)
     conc_latency_p95_list: list[float] = field(default_factory=list)
+    conc_latency_p90_list: list[float] = field(default_factory=list)
     conc_latency_avg_list: list[float] = field(default_factory=list)
+    conc_recall_list: list[float] = field(default_factory=list)
 
     # for streaming cases
     st_ideal_insert_duration: int = 0

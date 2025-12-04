@@ -12,7 +12,9 @@ import numpy as np
 from vectordb_bench.backend.filter import Filter, non_filter
 
 from ... import config
-from ...models import ConcurrencySlotTimeoutError
+from ...metric import calc_recall
+from ...models import PerformanceTimeoutError
+from .. import utils
 from ..clients import api
 
 NUM_PER_BATCH = config.NUM_PER_BATCH
@@ -32,6 +34,7 @@ class MultiProcessingSearchRunner:
         self,
         db: api.VectorDB,
         test_data: list[list[float]],
+        ground_truth: list[list[int]] | None = None,
         k: int = config.K_DEFAULT,
         filters: Filter = non_filter,
         concurrencies: Iterable[int] = config.NUM_CONCURRENCY,
@@ -46,14 +49,19 @@ class MultiProcessingSearchRunner:
         self.concurrency_timeout = concurrency_timeout
 
         self.test_data = test_data
+        self.ground_truth = ground_truth
         log.debug(f"test dataset columns: {len(test_data)}")
 
     def search(
         self,
         test_data: list[list[float]],
+        ground_truth: list[list[int]] | None,
         q: mp.Queue,
         cond: mp.Condition,
-    ) -> tuple[int, float]:
+    ) -> tuple[int, list[float], list[float]]:
+        """
+        Execute search for all test_data, return (count, latencies, recalls)
+        """
         # sync all process
         q.put(1)
         with cond:
@@ -66,12 +74,16 @@ class MultiProcessingSearchRunner:
             start_time = time.perf_counter()
             count = 0
             latencies = []
+            recalls = []
             while time.perf_counter() < start_time + self.duration:
                 s = time.perf_counter()
                 try:
-                    self.db.search_embedding(test_data[idx], self.k)
-                    count += 1
+                    emb = test_data[idx]
+                    results = self.db.search_embedding(emb, self.k)
                     latencies.append(time.perf_counter() - s)
+                    if ground_truth:
+                        recalls.append(calc_recall(self.k, ground_truth[idx][:self.k], results))
+                    count += 1
                 except Exception as e:
                     log.warning(f"VectorDB search_embedding error: {e}")
 
@@ -90,7 +102,7 @@ class MultiProcessingSearchRunner:
             f"actual_dur={total_dur}s, count={count}, qps in this process: {round(count / total_dur, 4):3}"
         )
 
-        return (count, total_dur, latencies)
+        return (count, latencies, recalls)
 
     @staticmethod
     def get_mp_context():
@@ -104,7 +116,9 @@ class MultiProcessingSearchRunner:
         conc_qps_list = []
         conc_latency_p99_list = []
         conc_latency_p95_list = []
+        conc_latency_p90_list = []
         conc_latency_avg_list = []
+        conc_recall_list = []
         try:
             for conc in self.concurrencies:
                 with mp.Manager() as m:
@@ -114,7 +128,10 @@ class MultiProcessingSearchRunner:
                         max_workers=conc,
                     ) as executor:
                         log.info(f"Start search {self.duration}s in concurrency {conc}, filters: {self.filters}")
-                        future_iter = [executor.submit(self.search, self.test_data, q, cond) for i in range(conc)]
+                        future_iter = [
+                            executor.submit(self.search, self.test_data, self.ground_truth, q, cond)
+                            for i in range(conc)
+                        ]
                         # Sync all processes
                         self._wait_for_queue_fill(q, size=conc)
 
@@ -123,15 +140,21 @@ class MultiProcessingSearchRunner:
                             log.info(f"Syncing all process and start concurrency search, concurrency={conc}")
 
                         start = time.perf_counter()
-                        all_count = sum([r.result()[0] for r in future_iter])
-                        latencies = sum([r.result()[2] for r in future_iter], start=[])
+                        results = [r.result() for r in future_iter]
+                        all_count = sum([r[0] for r in results])
+                        latencies = sum([r[1] for r in results], start=[])
+                        recalls = sum([r[2] for r in results], start=[])
+
                         if not latencies:
                             log.warning("No latencies collected for concurrency=%s, skipping percentile calc", conc)
-                            latency_p99 = latency_p95 = latency_avg = float("nan")
+                            latency_p99 = latency_p95 = latency_p90 = latency_avg = float("nan")
+                            avg_recall = 0.0
                         else:
                             latency_p99 = np.percentile(latencies, 99)
                             latency_p95 = np.percentile(latencies, 95)
+                            latency_p90 = np.percentile(latencies, 90)
                             latency_avg = np.mean(latencies)
+                            avg_recall = np.mean(recalls) if recalls else 0.0
                         cost = time.perf_counter() - start
 
                         qps = round(all_count / cost, 4) if cost > 0 else 0.0
@@ -139,8 +162,10 @@ class MultiProcessingSearchRunner:
                         conc_qps_list.append(qps)
                         conc_latency_p99_list.append(latency_p99)
                         conc_latency_p95_list.append(latency_p95)
+                        conc_latency_p90_list.append(latency_p90)
                         conc_latency_avg_list.append(latency_avg)
-                        log.info(f"End search in concurrency {conc}: dur={cost}s, total_count={all_count}, qps={qps}")
+                        conc_recall_list.append(avg_recall)
+                        log.info(f"End search in concurrency {conc}: dur={cost}s, total_count={all_count}, qps={qps}, recall={avg_recall}")
 
                 if qps > max_qps:
                     max_qps = qps
@@ -164,7 +189,9 @@ class MultiProcessingSearchRunner:
             conc_qps_list,
             conc_latency_p99_list,
             conc_latency_p95_list,
+            conc_latency_p90_list,
             conc_latency_avg_list,
+            conc_recall_list,
         )
 
     def _wait_for_queue_fill(self, q: Queue, size: int):
@@ -173,7 +200,7 @@ class MultiProcessingSearchRunner:
             sleep_t = size if size < 10 else 10
             wait_t += sleep_t
             if wait_t > self.concurrency_timeout > 0:
-                raise ConcurrencySlotTimeoutError
+                raise PerformanceTimeoutError
             time.sleep(sleep_t)
 
     def run(self) -> float:

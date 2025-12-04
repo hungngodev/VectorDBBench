@@ -51,6 +51,7 @@ def main():
         "qps",
         "serial_latency_p99",
         "serial_latency_p95",
+        "serial_latency_p90",
         "recall",
     ]
 
@@ -78,6 +79,7 @@ def main():
                 "qps": metrics.get("qps"),
                 "serial_latency_p99": metrics.get("serial_latency_p99") or metrics.get("latency_p99"),
                 "serial_latency_p95": metrics.get("serial_latency_p95") or metrics.get("latency_p95"),
+                "serial_latency_p90": metrics.get("serial_latency_p90") or metrics.get("latency_p90"),
                 "recall": metrics.get("recall"),
             }
             rows.append(row)

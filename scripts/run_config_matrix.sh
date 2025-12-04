@@ -22,7 +22,13 @@ MEM=${MEM:-64Gi}
 # Vald tuning (timeouts/concurrency) to avoid empty results/timeouts under heavy load.
 VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
 VALD_TIMEOUT=${VALD_TIMEOUT:-300}
+VALD_TIMEOUT=${VALD_TIMEOUT:-300}
 VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
+# Concurrency list for client scaling (default: doubling sequence)
+NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,2,4,8,16,32}
+CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-60}
+CASE_TYPE=${CASE_TYPE:-Performance768D1M}
+K=${K:-100}
 
 run_job() {
   local job="$1"; shift
@@ -75,8 +81,9 @@ echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 # Milvus matrix (expanded for diverse testing)
 ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
-  milvus_m=(16 24 32 48 64)
-  milvus_ef=(128 256 512)
+  # Milvus: 4x5 = 20 configs (Target ~20)
+  milvus_m=(16 32 48 64)
+  milvus_ef=(128 192 256 384 512)
   mid=1
   for m in "${milvus_m[@]}"; do
     for ef in "${milvus_ef[@]}"; do
@@ -84,9 +91,11 @@ if [[ "${ENABLE_MILVUS}" == "true" ]]; then
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench milvushnsw \
           --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
-          --case-type Performance768D1M --uri http://milvus.marco.svc.cluster.local:19530 \
+          --case-type ${CASE_TYPE} --uri http://milvus.marco.svc.cluster.local:19530 \
           --m ${m} --ef-search ${ef} --ef-construction ${ef} \
-          --k 10 --drop-old --load --search-serial --search-concurrent"
+          --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
+          --drop-old --load --search-serial --search-concurrent \
+          --num-concurrency ${NUM_CONCURRENCY}"
       mid=$((mid+1))
     done
   done
@@ -95,8 +104,9 @@ fi
 # Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
 ENABLE_QDRANT=${ENABLE_QDRANT:-true}
 if [[ "${ENABLE_QDRANT}" == "true" ]]; then
-  qdrant_m=(24)
-  qdrant_ef=(256)
+  # Qdrant: 4x5 = 20 configs (Target ~20)
+  qdrant_m=(16 32 48 64)
+  qdrant_ef=(128 192 256 384 512)
   DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
   qid=1
   for m in "${qdrant_m[@]}"; do
@@ -107,9 +117,11 @@ if [[ "${ENABLE_QDRANT}" == "true" ]]; then
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench qdrantlocal \
           --db-label k8s-qdrant --task-label qdrant-m${m}-ef${ef} \
-          --case-type Performance768D1M --url http://qdrant.marco.svc.cluster.local:6333 \
-          --metric-type COSINE --on-disk False --m ${m} --ef-construct ${ef} --hnsw-ef ${ef} --k 10 \
-          ${qdrant_drop_flag} --load --search-serial --search-concurrent"
+          --case-type ${CASE_TYPE} --url http://qdrant.marco.svc.cluster.local:6333 \
+          --metric-type COSINE --on-disk False --m ${m} --ef-construct ${ef} --hnsw-ef ${ef} \
+          --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
+          ${qdrant_drop_flag} --load --search-serial --search-concurrent \
+          --num-concurrency ${NUM_CONCURRENCY}"
       qid=$((qid+1))
     done
   done
@@ -118,8 +130,9 @@ fi
 # Weaviate matrix (expanded for diverse testing; no auth)
 ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
-  weav_m=(16 24 32 48 64)
-  weav_ef=(128 256 512)
+  # Weaviate: 4x5 = 20 configs (Target ~20)
+  weav_m=(16 32 48 64)
+  weav_ef=(128 192 256 384 512)
   wid=1
   for m in "${weav_m[@]}"; do
     for ef in "${weav_ef[@]}"; do
@@ -127,9 +140,11 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench weaviate \
           --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
-          --case-type Performance768D1M --url http://weaviate.marco.svc.cluster.local \
-          --no-auth --m ${m} --ef-construction ${ef} --ef ${ef} --metric-type COSINE --k 10 \
-          --drop-old --load --search-serial --search-concurrent"
+          --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
+          --no-auth --m ${m} --ef-construction ${ef} --ef ${ef} --metric-type COSINE \
+          --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
+          --drop-old --load --search-serial --search-concurrent \
+          --num-concurrency ${NUM_CONCURRENCY}"
       wid=$((wid+1))
     done
   done
@@ -138,7 +153,8 @@ fi
 # Vald matrix (trimmed for quick test; requires protobuf runtime pinned)
 ENABLE_VALD=${ENABLE_VALD:-true}
 if [[ "${ENABLE_VALD}" == "true" ]]; then
-  vald_num=(12)
+  # Vald: 10 configs
+  vald_num=(10 20 40 60 80 100 150 200 300 400)
   vid=1
   for num in "${vald_num[@]}"; do
     job="vdb-vald-${vid}"
@@ -146,11 +162,12 @@ if [[ "${ENABLE_VALD}" == "true" ]]; then
       python -m pip install -U protobuf==${PROTOBUF_VERSION} >/tmp/pip-vald.log 2>&1 && \
       vectordbbench vald \
         --db-label k8s-vald --task-label vald-num${num} \
-        --case-type Performance768D1M --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \
+        --case-type ${CASE_TYPE} --host vald-lb-gateway.marco.svc.cluster.local --port 8081 \
         --use-tls False --batch-size 128 --metric-type COSINE --num ${num} --min-num 1 \
-        --wait-for-sync-seconds ${VALD_WAIT_SECONDS} --timeout ${VALD_TIMEOUT} --k 10 \
+        --wait-for-sync-seconds ${VALD_WAIT_SECONDS} --timeout ${VALD_TIMEOUT} \
+        --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
         --drop-old --load --search-serial --search-concurrent \
-        --num-concurrency ${VALD_CONCURRENCIES}"
+        --num-concurrency ${NUM_CONCURRENCY}"
     vid=$((vid+1))
   done
 fi

@@ -9,6 +9,8 @@
 
 set -euo pipefail
 
+export PATH=/usr/local/bin:$PATH
+
 LOG_FILE=${LOG_FILE:-run_all.log}
 
 echo "Starting scripts/run_all_and_cleanup.sh with nohup; logging to ${LOG_FILE}"

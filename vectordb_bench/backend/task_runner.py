@@ -187,6 +187,7 @@ class CaseRunner(BaseModel):
                         m.conc_qps_list,
                         m.conc_latency_p99_list,
                         m.conc_latency_p95_list,
+                        m.conc_latency_p90_list,
                         m.conc_latency_avg_list,
                     ) = search_results
                 if TaskStage.SEARCH_SERIAL in self.config.stages:
@@ -303,6 +304,7 @@ class CaseRunner(BaseModel):
             self.search_runner = MultiProcessingSearchRunner(
                 db=self.db,
                 test_data=self.test_emb,
+                ground_truth=gt_df,
                 filters=self.ca.filters,
                 concurrencies=self.config.case_config.concurrency_search_config.num_concurrency,
                 duration=self.config.case_config.concurrency_search_config.concurrency_duration,
