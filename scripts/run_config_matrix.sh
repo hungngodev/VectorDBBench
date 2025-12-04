@@ -81,9 +81,9 @@ echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 # Milvus matrix (expanded for diverse testing)
 ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
-  # Milvus: 10x11 = 110 configs (Target ~100)
-  milvus_m=(4 8 12 16 24 32 48 64 96 128)
-  milvus_ef=(64 96 128 192 256 320 384 448 512 640 768)
+  # Milvus: 5x8 = 40 configs (Target 40)
+  milvus_m=(8 16 32 64 128)
+  milvus_ef=(64 128 192 256 320 384 512 768)
   mid=1
   for m in "${milvus_m[@]}"; do
     for ef in "${milvus_ef[@]}"; do
@@ -104,9 +104,9 @@ fi
 # Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
 ENABLE_QDRANT=${ENABLE_QDRANT:-true}
 if [[ "${ENABLE_QDRANT}" == "true" ]]; then
-  # Qdrant: 10x11 = 110 configs (Target ~100)
-  qdrant_m=(4 8 12 16 24 32 48 64 96 128)
-  qdrant_ef=(64 96 128 192 256 320 384 448 512 640 768)
+  # Qdrant: 5x8 = 40 configs (Target 40)
+  qdrant_m=(8 16 32 64 128)
+  qdrant_ef=(64 128 192 256 320 384 512 768)
   DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
   qid=1
   for m in "${qdrant_m[@]}"; do
@@ -130,9 +130,9 @@ fi
 # Weaviate matrix (expanded for diverse testing; no auth)
 ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
-  # Weaviate: 10x11 = 110 configs (Target ~100)
-  weav_m=(4 8 12 16 24 32 48 64 96 128)
-  weav_ef=(64 96 128 192 256 320 384 448 512 640 768)
+  # Weaviate: 5x8 = 40 configs (Target 40)
+  weav_m=(8 16 32 64 128)
+  weav_ef=(64 128 192 256 320 384 512 768)
   wid=1
   for m in "${weav_m[@]}"; do
     for ef in "${weav_ef[@]}"; do
