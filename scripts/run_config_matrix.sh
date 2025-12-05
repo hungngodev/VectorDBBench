@@ -83,7 +83,7 @@ ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
   # Milvus: 5x8 = 40 configs (Target 40)
   milvus_m=(8 16 32 64 128)
-  milvus_ef=(64 128 192 256 320 384 512 768)
+  milvus_ef=(128 192 256 320 384 448 512 768)
   mid=1
   for m in "${milvus_m[@]}"; do
     for ef in "${milvus_ef[@]}"; do
@@ -106,7 +106,7 @@ ENABLE_QDRANT=${ENABLE_QDRANT:-true}
 if [[ "${ENABLE_QDRANT}" == "true" ]]; then
   # Qdrant: 5x8 = 40 configs (Target 40)
   qdrant_m=(8 16 32 64 128)
-  qdrant_ef=(64 128 192 256 320 384 512 768)
+  qdrant_ef=(128 192 256 320 384 448 512 768)
   DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
   qid=1
   for m in "${qdrant_m[@]}"; do
@@ -132,7 +132,7 @@ ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
   # Weaviate: 5x8 = 40 configs (Target 40)
   weav_m=(8 16 32 64 128)
-  weav_ef=(64 128 192 256 320 384 512 768)
+  weav_ef=(128 192 256 320 384 448 512 768)
   wid=1
   for m in "${weav_m[@]}"; do
     for ef in "${weav_ef[@]}"; do
