@@ -5,14 +5,13 @@ Aggregate benchmark result JSONs into a single CSV.
 By default scans /mnt/nfs/home/hmngo/work1/hmngo/vdb_results but you can override with:
   python scripts/aggregate_results.py --root /path/to/results --output combined.csv
 
-Each row includes db (derived from folder name or filename), task_label (parsed from filename),
-and common metric fields when present.
+Each row includes db, task_label, concurrency level, and all metrics for that concurrency.
+One row is emitted per (config, concurrency) pair.
 """
 
 import argparse
 import csv
 import json
-import os
 from glob import glob
 from pathlib import Path
 
@@ -20,7 +19,7 @@ from pathlib import Path
 def parse_args():
     p = argparse.ArgumentParser(description="Aggregate VectorDBBench JSON results into a CSV.")
     p.add_argument("--root", default="/mnt/nfs/home/hmngo/work1/hmngo/vdb_results", help="Root directory of result JSONs")
-    p.add_argument("--output", default="results_combined.csv", help="Output CSV path")
+    p.add_argument("--output", default="all_results.csv", help="Output CSV path")
     return p.parse_args()
 
 
@@ -43,16 +42,21 @@ def main():
     fields = [
         "db",
         "task_label",
-        "file",
-        "max_load_count",
+        "concurrency",
+        "qps",
+        "latency_p99",
+        "latency_p95",
+        "latency_p90",
+        "latency_avg",
+        "recall",
+        # Also include load/build times (same for all concurrencies within a config)
+        "load_duration",
         "insert_duration",
         "optimize_duration",
-        "load_duration",
-        "qps",
+        # Serial search metrics (for reference)
         "serial_latency_p99",
         "serial_latency_p95",
-        "serial_latency_p90",
-        "recall",
+        "serial_recall",
     ]
 
     rows = []
@@ -68,21 +72,65 @@ def main():
         results = data.get("results") or []
         for res in results:
             metrics = res.get("metrics", {})
-            row = {
-                "db": db,
-                "task_label": task_label,
-                "file": str(path),
-                "max_load_count": metrics.get("max_load_count"),
-                "insert_duration": metrics.get("insert_duration"),
-                "optimize_duration": metrics.get("optimize_duration"),
-                "load_duration": metrics.get("load_duration") or metrics.get("load_dur"),
-                "qps": metrics.get("qps"),
-                "serial_latency_p99": metrics.get("serial_latency_p99") or metrics.get("latency_p99"),
-                "serial_latency_p95": metrics.get("serial_latency_p95") or metrics.get("latency_p95"),
-                "serial_latency_p90": metrics.get("serial_latency_p90") or metrics.get("latency_p90"),
-                "recall": metrics.get("recall"),
-            }
-            rows.append(row)
+
+            # Get per-concurrency lists
+            conc_num_list = metrics.get("conc_num_list", [])
+            conc_qps_list = metrics.get("conc_qps_list", [])
+            conc_latency_p99_list = metrics.get("conc_latency_p99_list", [])
+            conc_latency_p95_list = metrics.get("conc_latency_p95_list", [])
+            conc_latency_p90_list = metrics.get("conc_latency_p90_list", [])
+            conc_latency_avg_list = metrics.get("conc_latency_avg_list", [])
+            conc_recall_list = metrics.get("conc_recall_list", [])
+
+            # Common fields (same for all concurrencies in this config)
+            load_duration = metrics.get("load_duration") or metrics.get("load_dur")
+            insert_duration = metrics.get("insert_duration")
+            optimize_duration = metrics.get("optimize_duration")
+            serial_latency_p99 = metrics.get("serial_latency_p99") or metrics.get("latency_p99")
+            serial_latency_p95 = metrics.get("serial_latency_p95") or metrics.get("latency_p95")
+            serial_recall = metrics.get("recall")
+
+            # Emit one row per concurrency level
+            if conc_num_list:
+                for i, conc in enumerate(conc_num_list):
+                    row = {
+                        "db": db,
+                        "task_label": task_label,
+                        "concurrency": conc,
+                        "qps": conc_qps_list[i] if i < len(conc_qps_list) else None,
+                        "latency_p99": conc_latency_p99_list[i] if i < len(conc_latency_p99_list) else None,
+                        "latency_p95": conc_latency_p95_list[i] if i < len(conc_latency_p95_list) else None,
+                        "latency_p90": conc_latency_p90_list[i] if i < len(conc_latency_p90_list) else None,
+                        "latency_avg": conc_latency_avg_list[i] if i < len(conc_latency_avg_list) else None,
+                        "recall": conc_recall_list[i] if i < len(conc_recall_list) else None,
+                        "load_duration": load_duration,
+                        "insert_duration": insert_duration,
+                        "optimize_duration": optimize_duration,
+                        "serial_latency_p99": serial_latency_p99,
+                        "serial_latency_p95": serial_latency_p95,
+                        "serial_recall": serial_recall,
+                    }
+                    rows.append(row)
+            else:
+                # Fallback: no concurrency data, emit single row with summary
+                row = {
+                    "db": db,
+                    "task_label": task_label,
+                    "concurrency": None,
+                    "qps": metrics.get("qps"),
+                    "latency_p99": serial_latency_p99,
+                    "latency_p95": serial_latency_p95,
+                    "latency_p90": None,
+                    "latency_avg": None,
+                    "recall": serial_recall,
+                    "load_duration": load_duration,
+                    "insert_duration": insert_duration,
+                    "optimize_duration": optimize_duration,
+                    "serial_latency_p99": serial_latency_p99,
+                    "serial_latency_p95": serial_latency_p95,
+                    "serial_recall": serial_recall,
+                }
+                rows.append(row)
 
     with open(args.output, "w", newline="") as out:
         writer = csv.DictWriter(out, fieldnames=fields)
