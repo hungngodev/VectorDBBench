@@ -15,6 +15,10 @@ echo ">>> Phase 1: Downloading results from pods to ${TEMP_DIR}..."
 echo "    (This might show 'No such file' for pods that failed or haven't started, which is fine)"
 
 # Get all pods starting with vdb-milvus (TEST MARKER)
+# listing name and status to debug
+echo "List of pods found:"
+kubectl -n marco get pods --no-headers -o custom-columns="NAME:.metadata.name,STATUS:.status.phase" | grep '^vdb-milvus'
+
 PODS=$(kubectl -n marco get pods --no-headers -o custom-columns=":metadata.name" | grep '^vdb-milvus')
 
 if [ -z "$PODS" ]; then
@@ -25,10 +29,8 @@ fi
 for pod in $PODS; do
     echo "  - Checking pod: $pod"
     # Try to copy from Milvus, Weaviate, etc. paths. 
-    # Valid paths inside pod: /opt/vdb/vectordb_bench/results/{Milvus,Weaviate,Qdrant,Vald}
-    
-    # We copy the *entire* results directory recursively to capture all DB subfolders
-    kubectl -n marco cp "$pod:/opt/vdb/vectordb_bench/results/." "${TEMP_DIR}/" >/dev/null 2>&1 || true
+    # Remove suppression of valid errors to see why it fails
+    kubectl -n marco cp "$pod:/opt/vdb/vectordb_bench/results/." "${TEMP_DIR}/" || echo "    FAILED to copy from $pod"
 done
 
 echo ">>> Phase 2: Generating Python Aggregation Script..."
