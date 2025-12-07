@@ -14,3 +14,4 @@ results/
 logs/
 *.log
 *.csv
+analysis/

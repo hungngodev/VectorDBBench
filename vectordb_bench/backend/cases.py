@@ -28,6 +28,7 @@ class CaseType(Enum):
     Performance768D100M = 3
     Performance768D10M = 4
     Performance768D1M = 5
+    Performance768D100K = 16
 
     Performance768D10M1P = 6
     Performance768D1M1P = 7
@@ -170,6 +171,17 @@ class IntFilterPerformanceCase(PerformanceCase):
         int_field = self.dataset.data.train_id_field
         int_value = int(self.dataset.data.size * self.filter_rate)
         return IntFilter(filter_rate=self.filter_rate, int_field=int_field, int_value=int_value)
+
+
+class Performance768D100K(PerformanceCase):
+    case_id: CaseType = CaseType.Performance768D100K
+    dataset: DatasetManager = Dataset.COHERE.manager(100_000)
+    name: str = "Search Performance Test (100K Dataset, 768 Dim)"
+    description: str = """This case tests the search performance of a vector database with a small dataset
+    (<b>Cohere 100K vectors</b>, 768 dimensions) at varying parallel levels.
+    Results will show index building time, recall, and maximum QPS."""
+    load_timeout: float | int = config.LOAD_TIMEOUT_768D_100K
+    optimize_timeout: float | int | None = config.OPTIMIZE_TIMEOUT_768D_100K
 
 
 class Performance768D1M(PerformanceCase):
@@ -557,6 +569,7 @@ type2case = {
     CaseType.Performance768D100M: Performance768D100M,
     CaseType.Performance768D10M: Performance768D10M,
     CaseType.Performance768D1M: Performance768D1M,
+    CaseType.Performance768D100K: Performance768D100K,
     CaseType.Performance768D10M1P: Performance768D10M1P,
     CaseType.Performance768D1M1P: Performance768D1M1P,
     CaseType.Performance768D10M99P: Performance768D10M99P,
