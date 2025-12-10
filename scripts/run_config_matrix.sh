@@ -29,6 +29,8 @@ NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,2,4,8,16,32}
 CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-60}
 CASE_TYPE=${CASE_TYPE:-Performance768D1M}
 K=${K:-100}
+# HNSW efConstruction: Fixed high value for quality graph (do not vary with efSearch)
+EF_CONSTRUCTION=${EF_CONSTRUCTION:-360}
 
 run_job() {
   local job="$1"; shift
@@ -81,9 +83,9 @@ echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 # Milvus matrix (expanded for diverse testing)
 ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
-  # Milvus: 6x10 = 60 configs
-  milvus_m=(4 8 16 32 64 128)
-  milvus_ef=(64 96 128 192 256 384 512 640 768 1024)
+  # Milvus: 7x8 = 56 configs (EF must be >= K=100)
+  milvus_m=(4 8 16 32 64 128 256)
+  milvus_ef=(128 192 256 384 512 640 768 1024)
   mid=1
   for m in "${milvus_m[@]}"; do
     for ef in "${milvus_ef[@]}"; do
@@ -92,7 +94,7 @@ if [[ "${ENABLE_MILVUS}" == "true" ]]; then
         vectordbbench milvushnsw \
           --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
           --case-type ${CASE_TYPE} --uri http://milvus.marco.svc.cluster.local:19530 \
-          --m ${m} --ef-search ${ef} --ef-construction ${ef} \
+          --m ${m} --ef-search ${ef} --ef-construction ${EF_CONSTRUCTION} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
           --num-concurrency ${NUM_CONCURRENCY}"
@@ -130,9 +132,9 @@ fi
 # Weaviate matrix (expanded for diverse testing; no auth)
 ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
-  # Weaviate: 6x10 = 60 configs
-  weav_m=(4 8 16 32 64 128)
-  weav_ef=(64 96 128 192 256 384 512 640 768 1024)
+  # Weaviate: 7x8 = 56 configs (EF must be >= K=100)
+  weav_m=(4 8 16 32 64 128 256)
+  weav_ef=(128 192 256 384 512 640 768 1024)
   wid=1
   for m in "${weav_m[@]}"; do
     for ef in "${weav_ef[@]}"; do
@@ -141,7 +143,7 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
         vectordbbench weaviate \
           --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
           --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
-          --no-auth --m ${m} --ef-construction ${ef} --ef ${ef} --metric-type COSINE \
+          --no-auth --m ${m} --ef-construction ${EF_CONSTRUCTION} --ef ${ef} --metric-type COSINE \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
           --num-concurrency ${NUM_CONCURRENCY}"
