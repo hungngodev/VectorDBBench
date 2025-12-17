@@ -1,139 +1,220 @@
-# VectorDBBench on Kubernetes
+# VectorDBBench
 
-A comprehensive framework for benchmarking vector databases (Milvus, Weaviate, Qdrant, Vald) in distributed Kubernetes environments. This repository contains the source code, benchmark scripts, and analysis tools used to produce rigorous performance reports.
+Benchmark framework for comparing Milvus and Weaviate vector databases on Kubernetes.
 
-## Prerequisites
+## Quick Start
 
-- **Kubernetes Cluster**: Version 1.25+ (verified on 1.31)
-- **Shared Storage (NFS)**: Highly recommended for sharing datasets and results between nodes.
-- **Python 3.10+**: For local analysis scripts.
-- **Docker**: To build the benchmark image.
-- **Poetry**: For dependency management.
-
-## 1. Setup
-
-### Installation
-
-Clone the repository and install dependencies:
+### 1. Install
 
 ```bash
 git clone https://github.com/hungngodev/VectorDBBench.git
 cd VectorDBBench
-pip install poetry
-poetry install
+pip install poetry && poetry install
 ```
 
-### Build Docker Image
-
-Build the benchmark runner image and push it to your registry (or use the pre-built one):
+### 2. Build & Push Docker Image
 
 ```bash
 docker build -t hungngodev/vectordbbench:latest .
 docker push hungngodev/vectordbbench:latest
 ```
 
-## 2. Infrastructure Deployment
+### 3. Prepare Dataset
 
-Before running benchmarks, you must deploy the target vector databases in your Kubernetes cluster. The scripts verify against the following service URLs by default in the `marco` namespace:
-
-- **Milvus**: `http://milvus.marco.svc.cluster.local:19530`
-- **Weaviate**: `http://weaviate.marco.svc.cluster.local:8080` (or `weaviate-0.weaviate-headless:8080`)
-- **Qdrant**: `http://qdrant.marco.svc.cluster.local:6333`
-
-Ensure your databases are healthy and accessible from within the cluster.
-
-## 3. Dataset Preparation
-
-To avoid downloading large datasets (1M+ vectors) for every job, download them once to a shared NFS volume:
+Download datasets to shared NFS storage:
 
 ```bash
-# Run locally or on a cluster node with NFS access
 ./prepare_datasets.sh /mnt/nfs/shared/datasets
 ```
 
-This will download:
-- Cohere 1M (768d)
-- SIFT 1M (128d)
-- OpenAI 500K (1536d)
-
-## 4. Running Benchmarks
-
-We provide shell scripts in `scripts/` to orchestrate Kubernetes Jobs for parameter sweeps.
-
-### Configure Environment
-
-Edit `scripts/run_config_matrix.sh` or set environment variables:
+### 4. Run Benchmarks
 
 ```bash
-export NS=marco                                 # Kubernetes namespace
-export IMG=hungngodev/vectordbbench:latest      # Benchmark image
-export HOST_DATA_DIR=/mnt/nfs/shared/datasets   # Path to cached datasets
-export HOST_RESULTS_DIR=/mnt/nfs/shared/results # Path to save JSON results
-export NUM_CONCURRENCY=1,2,4,8,16,32            # Client concurrency levels
-export CASE_TYPE=Performance768D1M              # Benchmark case (1M vectors)
-```
+export NS=marco
+export HOST_DATA_DIR=/mnt/nfs/shared/datasets
+export HOST_RESULTS_DIR=/mnt/nfs/shared/results
+export CASE_TYPE=Performance768D1M  # or Performance768D100K
 
-### Execute Parameter Sweep
-
-Run the full matrix of configurations (M, efConstruction, efSearch):
-
-```bash
-# Runs ~100 jobs sequentially per database to test all parameter combinations
 ./scripts/run_config_matrix.sh
 ```
 
-### Quick Verification
-
-For a faster sanity check (fewer configs), run:
-
-```bash
-./scripts/run_verify_parallel.sh
-```
-
-## 5. Analysis & Visualization
-
-After benchmarks complete, results are saved as JSON files in your `HOST_RESULTS_DIR`.
-
-### Aggregate Results
-
-Combine all JSON results into a single CSV for analysis:
+### 5. Analyze Results
 
 ```bash
 python scripts/aggregate_results.py --dir /mnt/nfs/shared/results --output analysis/all_results.csv
+cd analysis && python generate_figures.py
 ```
 
-### Generate Plots
+---
 
-Create performance visualizations (QPS vs Recall, Latency, etc.):
+## UMass Swarm Cluster Setup
+
+### SSH Access
 
 ```bash
-cd analysis
-python generate_plots.py
+ssh your_username@swarm056.cs.umass.edu
 ```
 
-This will generate figures like:
-- `deep_fig1_overview.png`: QPS/Recall distribution
-- `deep_fig2_sensitivity.png`: Parameter trade-offs
-- `deep_fig3_heatmaps.png`: Scalability heatmaps
+### Kubernetes Access
 
-## 6. Project Structure
-
-```
-├── analysis/               # Analysis scripts and report
-│   ├── RESEARCH_REPORT.md  # Final performance report
-│   └── generate_plots.py   # Visualization script
-├── scripts/                # Kubernetes orchestration scripts
-│   ├── run_config_matrix.sh # Main benchmark runner
-│   └── aggregate_results.py # Result aggregator
-├── vectordb_bench/         # Core benchmark python package
-│   ├── backend/            # Database clients and runners
-│   └── cli/                # Command-line interface
-├── Dockerfile              # Runner image definition
-└── prepare_datasets.sh     # Dataset downloader
+```bash
+export KUBECONFIG=/path/to/kubeconfig
+kubectl config use-context swarm
+kubectl get pods -n marco
 ```
 
-## Troubleshooting
+### Database Deployments
 
-- **Permission Denied**: Ensure the K8s ServiceAccount used by the Job has permissions to `list/get` pods if using auto-discovery, or that the runner can access the database URLs.
-- **Timeouts**: If large datasets fail to load, increase `VALD_TIMEOUT` or check database resource limits (CPU/Mem).
-- **Empty Results**: Check `HOST_RESULTS_DIR` permissions; the container runs as root by default but NFS might squash permissions.
+Databases are deployed in the `marco` namespace:
+
+| Database | Service URL | Port | Configuration |
+|----------|-------------|------|---------------|
+| Milvus | `milvus.marco.svc.cluster.local` | 19530 | Distributed architecture, **1 querynode** |
+| Weaviate | `weaviate.marco.svc.cluster.local` | 8080 | **Single monolithic instance** |
+
+> **Note**: Although Milvus uses a distributed architecture (separate coordinator, data node, index node, query node), we run with **1 querynode** for fair comparison with Weaviate's single instance.
+
+### Raft Scaling Experiment
+
+In the Raft scaling experiment, Weaviate was deployed as a **3-node Raft cluster** while Milvus remained at 1 querynode.
+
+**Key findings**:
+- Weaviate's Raft consensus provides **fault tolerance only**, not search parallelism
+- Each search query is still processed by a single node
+- **Load balancing must be implemented separately** (e.g., via Kubernetes Ingress or a custom load balancer)
+- Milvus's querynode can be independently scaled for search parallelism
+
+### Modifying Database Configurations
+
+**Milvus** (Helm values):
+```bash
+# View current config
+helm get values milvus -n marco
+
+# Update querynode replicas (NOTE: kept at 1 for fair comparison)
+helm upgrade milvus milvus/milvus -n marco --set queryNode.replicas=1
+```
+
+**Weaviate** (Helm values):
+```bash
+# View current config
+helm get values weaviate -n marco
+
+# Update replica count (Raft consensus for fault tolerance)
+helm upgrade weaviate semitechnologies/weaviate -n marco --set replicas=3
+```
+
+### HNSW Index Parameters
+
+To modify HNSW parameters (M, efConstruction, efSearch), edit the benchmark scripts:
+
+```bash
+# In scripts/run_config_matrix.sh
+M_VALUES="4 8 16 32 64 128"
+EF_VALUES="128 192 256 384 512 768"
+```
+
+### Monitoring
+
+```bash
+# Check pod status
+kubectl get pods -n marco -w
+
+# View logs
+kubectl logs -f deployment/milvus-querynode -n marco
+
+# Resource usage
+kubectl top pods -n marco
+```
+
+---
+
+## Results
+
+Benchmark results and analysis are in the `analysis/` directory:
+- `RESEARCH_REPORT_v2.md` - Performance comparison report
+- `all_results_*.csv` - Raw benchmark data
+- `*.png` - Visualization figures
+
+---
+
+## Scripts Reference
+
+### Main Benchmark Script
+
+**`scripts/run_all_nohup.sh`** - Run full benchmark detached (recommended):
+```bash
+HOST_DATA_DIR=/mnt/nfs/shared/datasets \
+HOST_RESULTS_DIR=/mnt/nfs/shared/results \
+CPU=16 MEM=64Gi \
+bash scripts/run_all_nohup.sh
+```
+Logs written to `run_all.log`. Monitor with `tail -f run_all.log`.
+
+### Configuration Script
+
+**`scripts/run_config_matrix.sh`** - Core benchmark runner with configurable parameters:
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `NS` | `marco` | Kubernetes namespace |
+| `HOST_DATA_DIR` | (empty) | Path to cached datasets on NFS |
+| `HOST_RESULTS_DIR` | (empty) | Path to save results on NFS |
+| `CASE_TYPE` | `Performance768D1M` | Benchmark case (`Performance768D100K`, `Performance768D1M`) |
+| `K` | `100` | Number of nearest neighbors to retrieve |
+| `EF_CONSTRUCTION` | `360` | HNSW efConstruction (fixed for index quality) |
+| `NUM_CONCURRENCY` | `1,2,4,8,16,32` | Client concurrency levels |
+| `CONCURRENCY_DURATION` | `60` | Seconds per concurrency level |
+| `CPU` / `MEM` | `16` / `64Gi` | Pod resource limits |
+
+**HNSW Parameter Matrices** (edit in script):
+```bash
+# Milvus/Weaviate: M and efSearch values
+milvus_m=(4 8 16 32 64 128 256)
+milvus_ef=(128 192 256 384 512 640 768 1024)
+
+weav_m=(4 8 16 32 64 128 256)
+weav_ef=(128 192 256 384 512 640 768 1024)
+```
+
+### Other Scripts
+
+**`scripts/run_all_and_cleanup.sh`**
+Orchestrates the entire benchmark pipeline:
+1. Runs `run_config_matrix.sh` to execute all benchmark jobs
+2. Calls `aggregate_results.py` to combine JSON results into CSV
+3. Cleans up individual JSON files after aggregation
+
+```bash
+NS=marco RESULT_ROOT=/mnt/nfs/shared/results OUTPUT=all_results.csv \
+bash scripts/run_all_and_cleanup.sh
+```
+
+---
+
+**`scripts/aggregate_results.py`**
+Combines individual JSON result files into a single CSV for analysis.
+
+```bash
+python scripts/aggregate_results.py --root /mnt/nfs/shared/results --output all_results.csv
+```
+
+Output columns: `db`, `task_label`, `concurrency`, `qps`, `latency_p99`, `recall`, `load_duration`, etc.
+
+---
+
+**`scripts/cleanup_bench.sh`**
+Deletes all benchmark jobs and pods (prefixed with `vdb-` or `vectordb-bench`) from the cluster.
+
+```bash
+NS=marco bash scripts/cleanup_bench.sh
+```
+
+---
+
+**`scripts/stop_and_clean.sh`**
+Emergency stop: kills local benchmark scripts AND deletes all Kubernetes jobs in `marco` namespace.
+
+```bash
+bash scripts/stop_and_clean.sh
+```
