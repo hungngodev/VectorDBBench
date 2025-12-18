@@ -9,6 +9,7 @@ Run this from inside a k8s pod to test load balancing behavior.
 import socket
 import os
 import sys
+import subprocess
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing as mp
@@ -18,122 +19,132 @@ WEAVIATE_URL = os.environ.get("WEAVIATE_URL", "weaviate.marco.svc.cluster.local"
 WEAVIATE_PORT = int(os.environ.get("WEAVIATE_PORT", "80"))
 
 
-def get_connection_target():
-    """Create a new TCP connection and return the resolved IP."""
+def resolve_all_ips(hostname):
+    """
+    Resolve all IPs for a hostname using getent (bypasses Python DNS caching).
+    Falls back to socket.getaddrinfo if getent is not available.
+    """
     try:
-        # Each call to getaddrinfo can resolve to a different IP
-        # if k8s Service uses round-robin
-        addrs = socket.getaddrinfo(WEAVIATE_URL, WEAVIATE_PORT, socket.AF_INET, socket.SOCK_STREAM)
-        if addrs:
-            return addrs[0][4][0]  # Return IP address
-    except Exception as e:
-        return f"error: {e}"
-    return "unknown"
+        # Use getent to bypass Python's DNS cache
+        result = subprocess.run(
+            ["getent", "ahostsv4", hostname],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            ips = set()
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    ip = line.split()[0]
+                    ips.add(ip)
+            return list(ips)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    
+    # Fallback to socket (may be cached)
+    try:
+        addrs = socket.getaddrinfo(hostname, None, socket.AF_INET, socket.SOCK_STREAM)
+        return list(set(addr[4][0] for addr in addrs))
+    except Exception:
+        return []
 
 
-def test_dns_resolution(num_resolutions=100):
-    """Test if DNS returns different IPs (k8s should load balance)."""
-    print(f"\n=== DNS Resolution Test ===")
-    print(f"Resolving {WEAVIATE_URL}:{WEAVIATE_PORT} {num_resolutions} times...")
-    
-    ips = []
-    for i in range(num_resolutions):
-        ip = get_connection_target()
-        ips.append(ip)
-    
-    counter = Counter(ips)
-    print(f"\nIP Distribution:")
-    for ip, count in counter.most_common():
-        print(f"  {ip}: {count} ({count/num_resolutions*100:.1f}%)")
-    
-    if len(counter) == 1:
-        print("\n⚠️  WARNING: All DNS resolutions returned the same IP!")
-        print("   This could mean:")
-        print("   1. Single pod is running")
-        print("   2. DNS caching is happening")
-        print("   3. Service type doesn't support load balancing for DNS")
-    else:
-        print(f"\n✓ Good: DNS returned {len(counter)} different IPs")
-    
-    return counter
-
-
-def make_connection_in_process():
-    """Function to run in separate process - simulates benchmark behavior."""
-    import socket
+def make_connection_to_ip(ip, port):
+    """Connect directly to a specific IP and port."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5)
-        # Get IP before connecting
-        addrs = socket.getaddrinfo(WEAVIATE_URL, WEAVIATE_PORT, socket.AF_INET, socket.SOCK_STREAM)
-        ip = addrs[0][4][0] if addrs else "unknown"
-        sock.connect((WEAVIATE_URL, WEAVIATE_PORT))
-        # Get the actual peer address after connecting
+        sock.connect((ip, port))
         peer = sock.getpeername()[0]
         sock.close()
-        return ip, peer
+        return ip, peer, None
     except Exception as e:
-        return "error", str(e)
+        return ip, None, str(e)
 
 
-def test_multiprocess_connections(num_processes=32):
-    """Test if parallel processes get distributed to different pods."""
-    print(f"\n=== Multi-Process Connection Test ===")
-    print(f"Creating {num_processes} parallel processes (simulating benchmark)...")
+def test_dns_resolution_all_ips():
+    """Test if DNS returns all pod IPs (for headless service)."""
+    print(f"\n=== DNS Resolution Test (All IPs) ===")
+    print(f"Resolving all IPs for {WEAVIATE_URL}...")
     
-    resolved_ips = []
+    all_ips = resolve_all_ips(WEAVIATE_URL)
+    
+    if all_ips:
+        print(f"\n✓ Found {len(all_ips)} IP(s):")
+        for ip in all_ips:
+            print(f"    {ip}")
+    else:
+        print("\n⚠️  Could not resolve any IPs!")
+    
+    return all_ips
+
+
+def test_connections_to_all_ips(all_ips, port):
+    """Test HTTP connections to each resolved IP."""
+    print(f"\n=== Connection Test to All IPs ===")
+    print(f"Testing connections to {len(all_ips)} IPs on port {port}...")
+    
+    results = []
+    for ip in all_ips:
+        target_ip, connected_ip, error = make_connection_to_ip(ip, port)
+        if error:
+            print(f"  {ip}: ❌ Connection failed - {error}")
+            results.append((ip, False))
+        else:
+            print(f"  {ip}: ✓ Connected successfully")
+            results.append((ip, True))
+    
+    successful = sum(1 for _, success in results if success)
+    print(f"\n{successful}/{len(all_ips)} connections successful")
+    
+    return results
+
+
+def test_round_robin_distribution(all_ips, port, num_connections=32):
+    """Test if we can distribute connections across all IPs using round-robin."""
+    print(f"\n=== Round-Robin Distribution Test ===")
+    print(f"Distributing {num_connections} connections across {len(all_ips)} IPs...")
+    
     connected_ips = []
     
-    with ProcessPoolExecutor(
-        mp_context=mp.get_context("spawn"),
-        max_workers=num_processes
-    ) as executor:
-        futures = [executor.submit(make_connection_in_process) for _ in range(num_processes)]
-        for future in as_completed(futures):
-            resolved, connected = future.result()
-            resolved_ips.append(resolved)
-            connected_ips.append(connected)
+    for i in range(num_connections):
+        # Round-robin IP selection
+        target_ip = all_ips[i % len(all_ips)]
+        _, connected_ip, error = make_connection_to_ip(target_ip, port)
+        if connected_ip:
+            connected_ips.append(connected_ip)
+        else:
+            connected_ips.append(f"error:{target_ip}")
     
-    print("\nResolved IP Distribution (DNS):")
-    res_counter = Counter(resolved_ips)
-    for ip, count in res_counter.most_common():
-        print(f"  {ip}: {count}")
+    counter = Counter(connected_ips)
+    print("\nConnection Distribution:")
+    for ip, count in counter.most_common():
+        pct = count / num_connections * 100
+        print(f"  {ip}: {count} ({pct:.1f}%)")
     
-    print("\nConnected IP Distribution (actual connection):")
-    conn_counter = Counter(connected_ips)
-    for ip, count in conn_counter.most_common():
-        print(f"  {ip}: {count}")
-    
-    if len(conn_counter) == 1 and "error" not in list(conn_counter.keys())[0]:
-        print("\n⚠️  WARNING: All connections went to the same pod!")
-        print("   The benchmark may not be testing distributed query performance.")
-    elif len(conn_counter) > 1:
-        print(f"\n✓ Good: Connections distributed to {len(conn_counter)} different pods")
-    
-    return res_counter, conn_counter
+    successful_ips = [ip for ip in counter.keys() if not ip.startswith("error:")]
+    if len(successful_ips) > 1:
+        print(f"\n✓ Connections distributed to {len(successful_ips)} different pods")
+        return True
+    else:
+        print("\n⚠️  Could not distribute connections")
+        return False
 
 
-def check_weaviate_nodes():
-    """Check Weaviate cluster nodes via API."""
-    print(f"\n=== Weaviate Cluster Info ===")
+def check_weaviate_nodes_via_ip(ip, port):
+    """Check Weaviate cluster nodes via API using a specific IP."""
     try:
         import urllib.request
         import json
         
-        url = f"http://{WEAVIATE_URL}:{WEAVIATE_PORT}/v1/nodes"
+        url = f"http://{ip}:{port}/v1/nodes"
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode())
             nodes = data.get("nodes", [])
-            print(f"Cluster has {len(nodes)} nodes:")
-            for node in nodes:
-                name = node.get("name", "unknown")
-                status = node.get("status", "unknown")
-                shards = node.get("shards", [])
-                print(f"  - {name}: status={status}, shards={len(shards)}")
             return nodes
-    except Exception as e:
-        print(f"Could not get cluster info: {e}")
+    except Exception:
         return None
 
 
@@ -143,36 +154,59 @@ def main():
     print("=" * 60)
     print(f"Target: {WEAVIATE_URL}:{WEAVIATE_PORT}")
     
-    # Check cluster info
-    nodes = check_weaviate_nodes()
+    # Step 1: Resolve all IPs
+    all_ips = test_dns_resolution_all_ips()
     
-    # Test DNS resolution
-    dns_counter = test_dns_resolution(100)
+    if not all_ips:
+        print("\n❌ Failed to resolve any IPs. Check the hostname.")
+        return
     
-    # Test multi-process connections
-    res_counter, conn_counter = test_multiprocess_connections(32)
+    # Step 2: Test connections to each IP
+    connection_results = test_connections_to_all_ips(all_ips, WEAVIATE_PORT)
+    working_ips = [ip for ip, success in connection_results if success]
+    
+    if not working_ips:
+        print("\n❌ No working IPs found. Check that port is correct (should be 8080 for HTTP).")
+        return
+    
+    # Step 3: Check cluster info via one of the working IPs
+    print(f"\n=== Weaviate Cluster Info ===")
+    nodes = check_weaviate_nodes_via_ip(working_ips[0], WEAVIATE_PORT)
+    if nodes:
+        print(f"Cluster has {len(nodes)} nodes:")
+        for node in nodes:
+            name = node.get("name", "unknown")
+            status = node.get("status", "unknown")
+            print(f"  - {name}: status={status}")
+    else:
+        print("Could not get cluster info")
+    
+    # Step 4: Test round-robin distribution
+    success = test_round_robin_distribution(working_ips, WEAVIATE_PORT, 32)
     
     # Summary
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
     
-    if nodes and len(nodes) > 1:
-        print(f"✓ Weaviate cluster has {len(nodes)} nodes")
+    if len(all_ips) > 1:
+        print(f"✓ DNS resolved {len(all_ips)} IPs (headless service working)")
     else:
-        print("⚠️  Could not verify multiple Weaviate nodes")
+        print("⚠️  DNS resolved only 1 IP (not using headless service)")
     
-    unique_ips = len([ip for ip in conn_counter.keys() if "error" not in ip])
-    if unique_ips > 1:
-        print(f"✓ Connections are distributed to {unique_ips} different IPs")
-        print("  Load balancing appears to be working!")
+    if len(working_ips) > 1:
+        print(f"✓ {len(working_ips)} IPs are reachable on port {WEAVIATE_PORT}")
     else:
-        print("⚠️  Connections are NOT distributed")
-        print("  This explains why scaling isn't linear")
-        print("\n  Possible fixes:")
-        print("  1. Check k8s Service type (should be ClusterIP with default LB)")
-        print("  2. Ensure sessionAffinity: None (default)")
-        print("  3. Use headless service + client-side load balancing")
+        print(f"⚠️  Only {len(working_ips)} IP(s) reachable on port {WEAVIATE_PORT}")
+    
+    if success:
+        print("✓ Client-side round-robin distribution is working!")
+        print("\n  To use in benchmark, implement client-side round-robin:")
+        print(f"    1. Resolve all IPs for {WEAVIATE_URL}")
+        print(f"    2. Each worker picks IP using: all_ips[worker_id % len(all_ips)]")
+        print(f"    3. Connect directly to that IP on port {WEAVIATE_PORT}")
+    else:
+        print("⚠️  Could not achieve distributed connections")
 
 
 if __name__ == "__main__":
