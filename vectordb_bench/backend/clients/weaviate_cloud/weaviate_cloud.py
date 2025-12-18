@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 
 import weaviate
+from weaviate.data.replication import ConsistencyLevel
 from weaviate.exceptions import WeaviateBaseError
 
 from ..api import DBCaseConfig, VectorDB
@@ -151,7 +152,7 @@ class WeaviateCloud(VectorDB):
             .with_additional("distance")
             .with_near_vector({"vector": query})
             .with_limit(k)
-            .with_consistency_level(weaviate.data.replication.ConsistencyLevel.ONE)
+            .with_consistency_level(ConsistencyLevel.ONE)
         )
         if filters:
             where_filter = {
