@@ -151,7 +151,7 @@ class WeaviateCloud(VectorDB):
             .with_additional("distance")
             .with_near_vector({"vector": query})
             .with_limit(k)
-            .with_consistency_level("ONE")  # Use ONE for max distributed throughput
+            .with_consistency_level(weaviate.data.replication.ConsistencyLevel.ONE)
         )
         if filters:
             where_filter = {
