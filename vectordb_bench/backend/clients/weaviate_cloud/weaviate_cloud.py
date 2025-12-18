@@ -131,7 +131,9 @@ class WeaviateCloud(VectorDB):
         
         if use_client_lb:
             # Resolve all pod IPs for client-side load balancing
+            log.info(f"[CLIENT-SIDE-LB] Resolving IPs for headless service: {hostname}")
             all_ips = resolve_all_pod_ips(hostname)
+            log.info(f"[CLIENT-SIDE-LB] Resolved {len(all_ips)} IPs: {all_ips}")
             
             if all_ips and len(all_ips) > 1:
                 # Pick a pod based on process ID for round-robin distribution
@@ -142,16 +144,17 @@ class WeaviateCloud(VectorDB):
                 modified_config = self.db_config.copy()
                 modified_config["url"] = f"{scheme}://{selected_ip}:{port}"
                 
-                log.debug(f"Client-side LB: worker {worker_id} connecting to pod {selected_ip} "
-                         f"(1 of {len(all_ips)} pods)")
+                log.info(f"[CLIENT-SIDE-LB] Worker PID={worker_id} -> connecting to pod {selected_ip} "
+                         f"(pod {worker_id % len(all_ips) + 1} of {len(all_ips)})")
                 
                 self.client = Client(**modified_config)
             else:
                 # Fallback to original URL if resolution fails or only 1 IP
-                log.debug(f"Client-side LB: using original URL (resolved {len(all_ips)} IPs)")
+                log.warning(f"[CLIENT-SIDE-LB] FALLBACK: Only {len(all_ips)} IPs resolved, using original URL")
                 self.client = Client(**self.db_config)
         else:
             # Not a headless service, use standard connection
+            log.info(f"[CLIENT-SIDE-LB] Not a headless service (hostname={hostname}), using standard connection")
             self.client = Client(**self.db_config)
         
         yield
