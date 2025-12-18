@@ -140,7 +140,7 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench weaviate \
           --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
-          --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
+          --case-type ${CASE_TYPE} --url http://weaviate-headless.marco.svc.cluster.local:8080 \
           --no-auth --m ${m} --ef-construction ${EF_CONSTRUCTION} --ef ${ef} --metric-type COSINE \
           --replication-factor ${WEAVIATE_REPLICATION_FACTOR} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
