@@ -8,12 +8,8 @@ set -euo pipefail
 NS=${NS:-marco}
 IMG=${IMG:-hungngodev/vectordbbench:latest}
 DATA_DIR=${DATA_DIR:-/opt/vdb/datasets}
-# If set, mount a host/NFS path into the pod for datasets to avoid re-downloading each job.
-# Example: HOST_DATA_DIR=/mnt/nfs/home/hmngo/work1/hmngo/datasets
-HOST_DATA_DIR=${HOST_DATA_DIR:-}
-# If set, mount a host/NFS path for results so outputs persist and are shared.
-# Example: HOST_RESULTS_DIR=/mnt/nfs/home/hmngo/work1/hmngo/vdb_results
-HOST_RESULTS_DIR=${HOST_RESULTS_DIR:-}
+HOST_DATA_DIR=${HOST_DATA_DIR:-/mnt/nfs/home/hmngo/work1/hmngo/datasets}
+HOST_RESULTS_DIR=${HOST_RESULTS_DIR:-/mnt/nfs/home/hmngo/work1/hmngo/vdb_results}
 # Protobuf version for Vald (must match gencode major); upgrade inside job if needed.
 PROTOBUF_VERSION=${PROTOBUF_VERSION:-6.31.1}
 # Resource requests/limits for benchmark jobs (fits 72 CPU / ~188Gi nodes)
@@ -28,6 +24,8 @@ VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
 NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,2,4,8,16,32}
 CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-60}
 CASE_TYPE=${CASE_TYPE:-Performance768D1M}
+# Weaviate replication factor for distributed query support
+WEAVIATE_REPLICATION_FACTOR=${WEAVIATE_REPLICATION_FACTOR:-3}
 K=${K:-100}
 # HNSW efConstruction: Fixed high value for quality graph (do not vary with efSearch)
 EF_CONSTRUCTION=${EF_CONSTRUCTION:-360}
@@ -83,9 +81,9 @@ echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 # Milvus matrix (expanded for diverse testing)
 ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
-  # Milvus: 7x8 = 56 configs (EF must be >= K=100)
-  milvus_m=(4 8 16 32 64 128 256)
-  milvus_ef=(128 192 256 384 512 640 768 1024)
+  # Milvus: single config for quick test (change back for full matrix)
+  milvus_m=(32)
+  milvus_ef=(256)
   mid=1
   for m in "${milvus_m[@]}"; do
     for ef in "${milvus_ef[@]}"; do
@@ -132,9 +130,9 @@ fi
 # Weaviate matrix (expanded for diverse testing; no auth)
 ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
-  # Weaviate: 7x8 = 56 configs (EF must be >= K=100)
-  weav_m=(4 8 16 32 64 128 256)
-  weav_ef=(128 192 256 384 512 640 768 1024)
+  # Weaviate: single config for quick test (change back for full matrix)
+  weav_m=(32)
+  weav_ef=(256)
   wid=1
   for m in "${weav_m[@]}"; do
     for ef in "${weav_ef[@]}"; do
@@ -144,6 +142,7 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
           --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
           --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
           --no-auth --m ${m} --ef-construction ${EF_CONSTRUCTION} --ef ${ef} --metric-type COSINE \
+          --replication-factor ${WEAVIATE_REPLICATION_FACTOR} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
           --num-concurrency ${NUM_CONCURRENCY}"

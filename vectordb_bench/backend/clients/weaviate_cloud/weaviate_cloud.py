@@ -93,6 +93,13 @@ class WeaviateCloud(VectorDB):
                 ],
             }
             class_obj["vectorIndexConfig"] = self.case_config.index_param()
+            
+            # Add replication config for distributed query support
+            replication_config = self.case_config.replication_param()
+            if replication_config:
+                class_obj["replicationConfig"] = replication_config
+                log.info(f"Creating collection with replicationConfig: {replication_config}")
+            
             try:
                 client.schema.create_class(class_obj)
             except WeaviateBaseError as e:
@@ -144,6 +151,7 @@ class WeaviateCloud(VectorDB):
             .with_additional("distance")
             .with_near_vector({"vector": query})
             .with_limit(k)
+            .with_consistency_level("ONE")  # Use ONE for max distributed throughput
         )
         if filters:
             where_filter = {

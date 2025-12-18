@@ -53,6 +53,16 @@ class WeaviateTypedDict(CommonTypedDict):
             help="Distance metric for Weaviate HNSW.",
         ),
     ]
+    replication_factor: Annotated[
+        int,
+        click.option(
+            "--replication-factor",
+            type=int,
+            default=1,
+            help="Replication factor for distributed query support. "
+                 "Set to number of Weaviate nodes (e.g., 3) for query distribution across replicas.",
+        ),
+    ]
 
 
 @cli.command()
@@ -73,6 +83,7 @@ def Weaviate(**parameters: Unpack[WeaviateTypedDict]):
             efConstruction=parameters["ef_construction"],
             maxConnections=parameters["m"],
             ef=parameters["ef"],
+            replication_factor=parameters["replication_factor"],
         ),
         **parameters,
     )

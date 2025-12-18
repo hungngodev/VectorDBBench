@@ -21,6 +21,9 @@ class WeaviateIndexConfig(BaseModel, DBCaseConfig):
     ef: int | None = -1
     efConstruction: int | None = None
     maxConnections: int | None = None
+    # Replication factor for distributed query support
+    # Set to match number of Weaviate nodes for query distribution
+    replication_factor: int | None = None
 
     def parse_metric(self) -> str:
         if self.metric_type == MetricType.L2:
@@ -40,7 +43,14 @@ class WeaviateIndexConfig(BaseModel, DBCaseConfig):
             params = {"distance": self.parse_metric()}
         return params
 
+    def replication_param(self) -> dict | None:
+        """Returns replicationConfig for collection creation."""
+        if self.replication_factor is not None and self.replication_factor > 1:
+            return {"factor": self.replication_factor}
+        return None
+
     def search_param(self) -> dict:
         return {
             "ef": self.ef,
         }
+
