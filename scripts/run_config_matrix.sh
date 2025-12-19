@@ -23,11 +23,11 @@ VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
 # Concurrency list for client scaling (default: doubling sequence)
 NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,4,16}
 CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-10}
-CASE_TYPE=${CASE_TYPE:-Performance768D100K}
+CASE_TYPE=${CASE_TYPE:-Performance1536D50K}
 # Weaviate replication factor for fault tolerance (data copied to N nodes)
-WEAVIATE_REPLICATION_FACTOR=${WEAVIATE_REPLICATION_FACTOR:-1}
+WEAVIATE_REPLICATION_FACTOR=${WEAVIATE_REPLICATION_FACTOR:-3}
 # Weaviate sharding count for parallel query execution (data split across N nodes)
-WEAVIATE_SHARDING_COUNT=${WEAVIATE_SHARDING_COUNT:-3}
+WEAVIATE_SHARDING_COUNT=${WEAVIATE_SHARDING_COUNT:-1}
 K=${K:-100}
 # HNSW efConstruction: Fixed high value for quality graph (do not vary with efSearch)
 EF_CONSTRUCTION=${EF_CONSTRUCTION:-360}

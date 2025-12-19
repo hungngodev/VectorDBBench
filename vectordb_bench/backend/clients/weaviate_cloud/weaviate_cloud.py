@@ -5,7 +5,6 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 
 import weaviate
-from weaviate.data.replication import ConsistencyLevel
 from weaviate.exceptions import WeaviateBaseError
 
 from ..api import DBCaseConfig, VectorDB
@@ -175,8 +174,16 @@ class WeaviateCloud(VectorDB):
             .with_additional("distance")
             .with_near_vector({"vector": query})
             .with_limit(k)
-            .with_consistency_level(ConsistencyLevel.ONE)
         )
+        # Use ConsistencyLevel.ONE for read scaling when replication is enabled.
+        # This allows queries to return from a single replica (faster).
+        # Requires Weaviate 1.26+ and replication_factor >= 3 at collection creation.
+        if hasattr(self.case_config, 'replication_factor') and self.case_config.replication_factor is not None and self.case_config.replication_factor >= 3:
+            try:
+                from weaviate.data.replication import ConsistencyLevel
+                query_obj = query_obj.with_consistency_level(ConsistencyLevel.ONE)
+            except (ImportError, AttributeError):
+                pass  # Weaviate client version doesn't support consistency level
         if filters:
             where_filter = {
                 "path": "key",
