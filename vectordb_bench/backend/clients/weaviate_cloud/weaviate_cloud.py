@@ -108,6 +108,24 @@ class WeaviateCloud(VectorDB):
             
             try:
                 client.schema.create_class(class_obj)
+                
+                # Wait for shards to be ready when sharding is enabled
+                if sharding_config:
+                    import time
+                    log.info("Waiting for shards to be ready...")
+                    for attempt in range(30):  # Wait up to 30 seconds
+                        time.sleep(1)
+                        try:
+                            # Try a simple query to check if shards are ready
+                            test_query = client.query.get(self.collection_name, [self._scalar_field]).with_limit(1).do()
+                            if "data" in test_query:
+                                log.info(f"Shards ready after {attempt + 1} seconds")
+                                break
+                        except Exception:
+                            pass
+                    else:
+                        log.warning("Shards may not be fully ready after 30 seconds")
+                        
             except WeaviateBaseError as e:
                 log.warning(f"Failed to create collection: {self.collection_name} error: {e!s}")
                 raise e from None
@@ -168,5 +186,10 @@ class WeaviateCloud(VectorDB):
             query_obj = query_obj.with_where(where_filter)
 
         res = query_obj.do()
+
+        # Check for errors in response (GraphQL returns errors key when query fails)
+        if "errors" in res:
+            error_msg = str(res["errors"])
+            raise RuntimeError(f"Weaviate query failed: {error_msg}")
 
         return [result[self._scalar_field] for result in res["data"]["Get"][self.collection_name]]
