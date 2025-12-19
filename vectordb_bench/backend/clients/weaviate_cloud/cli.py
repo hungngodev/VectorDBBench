@@ -90,7 +90,7 @@ def Weaviate(**parameters: Unpack[WeaviateTypedDict]):
         ),
         db_case_config=WeaviateIndexConfig(
             metric_type=MetricType(parameters["metric_type"].upper()),
-            efConstruction=parameters["ef_construct"],
+            efConstruction=parameters["ef_construction"],
             maxConnections=parameters["m"],
             ef=parameters["ef"],
             replication_factor=parameters["replication_factor"],
