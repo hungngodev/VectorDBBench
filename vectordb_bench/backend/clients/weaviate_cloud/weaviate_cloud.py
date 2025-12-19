@@ -39,7 +39,6 @@ class WeaviateCloud(VectorDB):
         self._vector_field = "vector"
         self._index_name = "vector_idx"
 
-        # If local setup is used, we
         if db_config["no_auth"]:
             del db_config["auth_client_secret"]
         del db_config["no_auth"]
@@ -69,9 +68,6 @@ class WeaviateCloud(VectorDB):
         from weaviate import Client
 
         self.client = Client(**self.db_config)
-        # Store a flag to optionally create fresh connections per search
-        # This helps K8s load balancer distribute requests across pods
-        self._fresh_connection_per_search = True
         yield
         self.client = None
         del self.client
@@ -98,7 +94,13 @@ class WeaviateCloud(VectorDB):
             }
             class_obj["vectorIndexConfig"] = self.case_config.index_param()
             
-            # Add replication config for distributed query support
+            # Sharding config for parallel query execution
+            sharding_config = self.case_config.sharding_param()
+            if sharding_config:
+                class_obj["shardingConfig"] = sharding_config
+                log.info(f"Creating collection with shardingConfig: {sharding_config}")
+            
+            # Replication config for fault tolerance
             replication_config = self.case_config.replication_param()
             if replication_config:
                 class_obj["replicationConfig"] = replication_config
@@ -147,23 +149,11 @@ class WeaviateCloud(VectorDB):
     ) -> list[int]:
         """Perform a search on a query embedding and return results with distance.
         Should call self.init() first.
-        
-        Note: Creates a fresh client for each search to disable keep-alive connections,
-        allowing K8s load balancer to distribute each request to different pods.
         """
-        from weaviate import Client
-        
-        # Create fresh client to force new TCP connection for each search
-        # This allows K8s LoadBalancer to route each request to a different pod
-        if getattr(self, '_fresh_connection_per_search', False):
-            search_client = Client(**self.db_config)
-        else:
-            search_client = self.client
-            
-        assert search_client.schema.exists(self.collection_name)
+        assert self.client.schema.exists(self.collection_name)
 
         query_obj = (
-            search_client.query.get(self.collection_name, [self._scalar_field])
+            self.client.query.get(self.collection_name, [self._scalar_field])
             .with_additional("distance")
             .with_near_vector({"vector": query})
             .with_limit(k)
@@ -177,8 +167,6 @@ class WeaviateCloud(VectorDB):
             }
             query_obj = query_obj.with_where(where_filter)
 
-        # Perform the search.
         res = query_obj.do()
 
-        # Organize results.
         return [result[self._scalar_field] for result in res["data"]["Get"][self.collection_name]]

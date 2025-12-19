@@ -24,8 +24,10 @@ VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
 NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,2,4,8,16,32}
 CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-60}
 CASE_TYPE=${CASE_TYPE:-Performance768D1M}
-# Weaviate replication factor for distributed query support
-WEAVIATE_REPLICATION_FACTOR=${WEAVIATE_REPLICATION_FACTOR:-3}
+# Weaviate replication factor for fault tolerance (data copied to N nodes)
+WEAVIATE_REPLICATION_FACTOR=${WEAVIATE_REPLICATION_FACTOR:-1}
+# Weaviate sharding count for parallel query execution (data split across N nodes)
+WEAVIATE_SHARDING_COUNT=${WEAVIATE_SHARDING_COUNT:-3}
 K=${K:-100}
 # HNSW efConstruction: Fixed high value for quality graph (do not vary with efSearch)
 EF_CONSTRUCTION=${EF_CONSTRUCTION:-360}
@@ -143,6 +145,7 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
           --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
           --no-auth --m ${m} --ef-construction ${EF_CONSTRUCTION} --ef ${ef} --metric-type COSINE \
           --replication-factor ${WEAVIATE_REPLICATION_FACTOR} \
+          --sharding-count ${WEAVIATE_SHARDING_COUNT} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
           --num-concurrency ${NUM_CONCURRENCY}"

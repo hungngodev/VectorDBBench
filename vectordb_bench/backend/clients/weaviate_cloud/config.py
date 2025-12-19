@@ -24,6 +24,10 @@ class WeaviateIndexConfig(BaseModel, DBCaseConfig):
     # Replication factor for distributed query support
     # Set to match number of Weaviate nodes for query distribution
     replication_factor: int | None = None
+    # Sharding count for parallel query execution
+    # Set to match number of Weaviate nodes to split data across nodes
+    # Each shard is searched in parallel, improving query throughput
+    sharding_count: int | None = None
 
     def parse_metric(self) -> str:
         if self.metric_type == MetricType.L2:
@@ -47,6 +51,16 @@ class WeaviateIndexConfig(BaseModel, DBCaseConfig):
         """Returns replicationConfig for collection creation."""
         if self.replication_factor is not None and self.replication_factor > 1:
             return {"factor": self.replication_factor}
+        return None
+
+    def sharding_param(self) -> dict | None:
+        """Returns shardingConfig for collection creation.
+        
+        Sharding splits data across nodes, enabling parallel query execution.
+        Unlike replication (which copies data), sharding distributes data.
+        """
+        if self.sharding_count is not None and self.sharding_count > 1:
+            return {"desiredCount": self.sharding_count}
         return None
 
     def search_param(self) -> dict:

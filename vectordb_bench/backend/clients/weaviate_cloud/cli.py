@@ -59,8 +59,18 @@ class WeaviateTypedDict(CommonTypedDict):
             "--replication-factor",
             type=int,
             default=1,
-            help="Replication factor for distributed query support. "
-                 "Set to number of Weaviate nodes (e.g., 3) for query distribution across replicas.",
+            help="Replication factor for high availability. "
+                 "Set to number of Weaviate nodes for fault tolerance.",
+        ),
+    ]
+    sharding_count: Annotated[
+        int,
+        click.option(
+            "--sharding-count",
+            type=int,
+            default=1,
+            help="Number of shards. Set to number of Weaviate nodes for parallel query execution. "
+                 "Data is split across shards and queries search all shards in parallel.",
         ),
     ]
 
@@ -80,10 +90,11 @@ def Weaviate(**parameters: Unpack[WeaviateTypedDict]):
         ),
         db_case_config=WeaviateIndexConfig(
             metric_type=MetricType(parameters["metric_type"].upper()),
-            efConstruction=parameters["ef_construction"],
+            efConstruction=parameters["ef_construct"],
             maxConnections=parameters["m"],
             ef=parameters["ef"],
             replication_factor=parameters["replication_factor"],
+            sharding_count=parameters["sharding_count"],
         ),
         **parameters,
     )
