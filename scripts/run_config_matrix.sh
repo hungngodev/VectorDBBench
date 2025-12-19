@@ -20,11 +20,12 @@ VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
 VALD_TIMEOUT=${VALD_TIMEOUT:-300}
 VALD_TIMEOUT=${VALD_TIMEOUT:-300}
 VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
-# Concurrency list for client scaling (default: doubling sequence)
-NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,4,16}
-CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-10}
-CASE_TYPE=${CASE_TYPE:-Performance1536D50K}
+# Concurrency list for client scaling (README: 1,2,4,8,16,32)
+NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,2,4,8,16,32}
+CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-60}
+CASE_TYPE=${CASE_TYPE:-Performance768D100K}
 # Weaviate replication factor for fault tolerance (data copied to N nodes)
+# Set to 3 for read scaling with ConsistencyLevel.ONE
 WEAVIATE_REPLICATION_FACTOR=${WEAVIATE_REPLICATION_FACTOR:-3}
 # Weaviate sharding count for parallel query execution (data split across N nodes)
 WEAVIATE_SHARDING_COUNT=${WEAVIATE_SHARDING_COUNT:-1}
@@ -80,12 +81,14 @@ EOF
 
 echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 
-# Milvus matrix (expanded for diverse testing)
+# Milvus matrix - Full parameter sweep for distributed testing
+# M values: graph connectivity (higher = better recall, slower build/query)
+# EF values: search beam width (higher = better recall, slower query)
 ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
-  # Milvus: single config for quick test (change back for full matrix)
-  milvus_m=(32)
-  milvus_ef=(256)
+  # Full matrix: 7 M values x 8 EF values = 56 configurations
+  milvus_m=(4 8 16 32 64 128 256)
+  milvus_ef=(128 192 256 384 512 640 768 1024)
   mid=1
   for m in "${milvus_m[@]}"; do
     for ef in "${milvus_ef[@]}"; do
@@ -104,7 +107,7 @@ if [[ "${ENABLE_MILVUS}" == "true" ]]; then
 fi
 
 # Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
-ENABLE_QDRANT=${ENABLE_QDRANT:-true}
+ENABLE_QDRANT=${ENABLE_QDRANT:-false}
 if [[ "${ENABLE_QDRANT}" == "true" ]]; then
   # Qdrant: 6x10 = 60 configs
   qdrant_m=(4 8 16 32 64 128)
@@ -129,12 +132,13 @@ if [[ "${ENABLE_QDRANT}" == "true" ]]; then
   done
 fi
 
-# Weaviate matrix (expanded for diverse testing; no auth)
+# Weaviate matrix - Full parameter sweep for distributed testing
+# Distributed config: 3-node cluster with replication for read scaling
 ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
-  # Weaviate: single config for quick test (change back for full matrix)
-  weav_m=(32)
-  weav_ef=(256)
+  # Full matrix: 7 M values x 8 EF values = 56 configurations
+  weav_m=(4 8 16 32 64 128 256)
+  weav_ef=(128 192 256 384 512 640 768 1024)
   wid=1
   for m in "${weav_m[@]}"; do
     for ef in "${weav_ef[@]}"; do
@@ -154,8 +158,8 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
   done
 fi
 
-# Vald matrix (trimmed for quick test; requires protobuf runtime pinned)
-ENABLE_VALD=${ENABLE_VALD:-true}
+# Vald matrix (disabled for distributed Milvus/Weaviate benchmark)
+ENABLE_VALD=${ENABLE_VALD:-false}
 if [[ "${ENABLE_VALD}" == "true" ]]; then
   # Vald: 10 configs
   vald_num=(10 20 40 60 80 100 150 200 300 400)
