@@ -15,10 +15,27 @@ collect_results() {
   echo "Collecting new results to ${LOCAL_RES_DIR} ..."
   find "${RESULT_ROOT}" -name "result_*.json" -exec cp {} "${LOCAL_RES_DIR}/" \; 2>/dev/null || true
   # Clear NFS (files owned by root, so run cleanup via K8s job)
-  kubectl -n "$NS" run cleanup-results --rm -i --restart=Never --image=busybox -- \
-    sh -c "rm -f /results/*/result_*.json" \
-    --overrides='{"spec":{"containers":[{"name":"cleanup-results","image":"busybox","command":["sh","-c","rm -f /results/*/result_*.json"],"volumeMounts":[{"name":"results","mountPath":"/results"}]}],"volumes":[{"name":"results","hostPath":{"path":"'"${HOST_RESULTS_DIR}"'"}}]}}' \
+  echo "Clearing NFS results folder..."
+  kubectl -n "$NS" delete pod cleanup-results --ignore-not-found 2>/dev/null || true
+  kubectl -n "$NS" run cleanup-results \
+    --restart=Never \
+    --image=busybox \
+    --overrides='{
+      "spec": {
+        "containers": [{
+          "name": "cleanup-results",
+          "image": "busybox",
+          "command": ["sh", "-c", "rm -rf /results/Milvus/result_*.json /results/WeaviateCloud/result_*.json /results/QdrantLocal/result_*.json /results/Vald/result_*.json && echo Cleaned"],
+          "volumeMounts": [{"name": "results", "mountPath": "/results"}]
+        }],
+        "volumes": [{"name": "results", "hostPath": {"path": "'"${HOST_RESULTS_DIR}"'"}}],
+        "restartPolicy": "Never"
+      }
+    }' \
     2>/dev/null || true
+  kubectl -n "$NS" wait --for=condition=Ready pod/cleanup-results --timeout=30s 2>/dev/null || true
+  kubectl -n "$NS" logs cleanup-results 2>/dev/null || true
+  kubectl -n "$NS" delete pod cleanup-results --ignore-not-found 2>/dev/null || true
 }
 
 run_job() {
