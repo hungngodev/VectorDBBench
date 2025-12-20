@@ -218,3 +218,4 @@ Emergency stop: kills local benchmark scripts AND deletes all Kubernetes jobs in
 ```bash
 bash scripts/stop_and_clean.sh
 ```
+kubectl -n marco run manual-cleanup2 --rm -it --restart=Never --image=busybox   --overrides='{"spec":{"containers":[{"name":"cleanup","image":"busybox","command":["sh","-c","rm -rf /results/QdrantLocal/*.json /results/Vald/*.json && echo Done"],"volumeMounts":[{"name":"results","mountPath":"/results"}]}],"volumes":[{"name":"results","hostPath":{"path":"/mnt/nfs/home/hmngo/work1/hmngo/vdb_results"}}],"restartPolicy":"Never"}}'
