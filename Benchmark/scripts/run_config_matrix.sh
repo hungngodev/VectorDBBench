@@ -8,6 +8,19 @@ source "${SCRIPT_DIR}/config.sh"
 HNSW_M_VALUES_ARR=(${HNSW_M_VALUES})
 HNSW_EF_VALUES_ARR=(${HNSW_EF_VALUES})
 
+LOCAL_RES_DIR="${SCRIPT_DIR}/../res/Batch/${BATCH_ID}/json"
+mkdir -p "${LOCAL_RES_DIR}"
+
+collect_results() {
+  echo "Collecting new results to ${LOCAL_RES_DIR} ..."
+  find "${RESULT_ROOT}" -name "result_*.json" -exec cp {} "${LOCAL_RES_DIR}/" \; 2>/dev/null || true
+  # Clear NFS (files owned by root, so run cleanup via K8s job)
+  kubectl -n "$NS" run cleanup-results --rm -i --restart=Never --image=busybox -- \
+    sh -c "rm -f /results/*/result_*.json" \
+    --overrides='{"spec":{"containers":[{"name":"cleanup-results","image":"busybox","command":["sh","-c","rm -f /results/*/result_*.json"],"volumeMounts":[{"name":"results","mountPath":"/results"}]}],"volumes":[{"name":"results","hostPath":{"path":"'"${HOST_RESULTS_DIR}"'"}}]}}' \
+    2>/dev/null || true
+}
+
 run_job() {
   local job="$1"; shift
   local cmd="$*"
@@ -55,6 +68,7 @@ EOF
   echo "Waiting for job/${job} to complete..."
   kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}"
   kubectl -n "$NS" logs "job/${job}" || true
+  collect_results
 }
 
 echo "Running matrix sweeps in namespace: $NS with image: $IMG"

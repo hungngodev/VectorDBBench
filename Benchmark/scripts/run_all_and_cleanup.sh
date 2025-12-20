@@ -5,17 +5,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/config.sh"
 
+LOCAL_RES_DIR="${SCRIPT_DIR}/../res/Batch/${BATCH_ID}/json"
+
 echo "Batch ID: ${BATCH_ID}"
+echo "Results will be collected to: ${LOCAL_RES_DIR}"
 echo "Running matrix sweeps with Benchmark/scripts/run_config_matrix.sh ..."
 bash "${SCRIPT_DIR}/run_config_matrix.sh"
 
-LOCAL_RES_DIR="${SCRIPT_DIR}/../res/batch/${BATCH_ID}/json"
-mkdir -p "${LOCAL_RES_DIR}"
-
-echo "Collecting result JSONs from ${RESULT_ROOT} to ${LOCAL_RES_DIR} ..."
-find "${RESULT_ROOT}" -name "result_*.json" -exec cp {} "${LOCAL_RES_DIR}/" \; 2>/dev/null || true
-
-echo "Individual JSONs collected in ${LOCAL_RES_DIR}."
+echo "All jobs completed. Results collected incrementally after each job."
 
 if [[ -n "${LOG_FILE:-}" ]] && [[ -f "${LOG_FILE}" ]]; then
   echo "Archiving log file (${LOG_FILE}) to batch folder..."
