@@ -9,7 +9,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --upgrade pip && \
     pip install --upgrade protobuf==6.31.1 && \
-    pip install -e '.[vald,qdrant,weaviate]'
+    pip install -e '.[vald,qdrant,weaviate]' && \
+    chmod +x /opt/vdb/Benchmark/*.sh /opt/vdb/Benchmark/scripts/*.sh 2>/dev/null || true
 
 ENV DATASET_LOCAL_DIR=/opt/vdb/datasets
 ENV PATH="/opt/vdb:${PATH}"

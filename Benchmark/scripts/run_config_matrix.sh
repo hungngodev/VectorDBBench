@@ -43,7 +43,7 @@ spec:
       containers:
       - name: bench
         image: ${IMG}
-        command: ["bash","-lc","cd /opt/vdb && ./prepare_datasets.sh ${DATA_DIR} && ${cmd}"]
+        command: ["bash","-lc","cd /opt/vdb && ./Benchmark/prepare_datasets.sh ${DATA_DIR} && ${cmd}"]
         resources:
           requests:
             cpu: "${CPU}"
