@@ -13,7 +13,7 @@ LOCAL_RES_DIR="${SCRIPT_DIR}/../res/batch/${BATCH_ID}/json"
 mkdir -p "${LOCAL_RES_DIR}"
 
 echo "Collecting result JSONs from ${RESULT_ROOT} to ${LOCAL_RES_DIR} ..."
-find "${RESULT_ROOT}" -name "result_*.json" -exec mv {} "${LOCAL_RES_DIR}/" \; 2>/dev/null || true
+find "${RESULT_ROOT}" -name "result_*.json" -exec cp {} "${LOCAL_RES_DIR}/" \; 2>/dev/null || true
 
 echo "Individual JSONs collected in ${LOCAL_RES_DIR}."
 
