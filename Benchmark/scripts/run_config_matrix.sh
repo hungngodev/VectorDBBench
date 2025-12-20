@@ -106,7 +106,7 @@ if [[ "${ENABLE_MILVUS}" == "true" ]]; then
       
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench milvushnsw \
-          --db-label k8s-milvus --task-label ${BATCH_ID}-milvus-m${m}-ef${ef}-efc${EF_CONSTRUCTION}-rep${REPLICA}-shard${SHARDING} \
+          --db-label k8s-milvus --task-label ${BATCH_ID}-milvus-m${m}-ef${ef}-rep${REPLICA}-shard${SHARDING} \
           --case-type ${CASE_TYPE} --uri http://milvus.marco.svc.cluster.local:19530 \
           --m ${m} --ef-search ${ef} --ef-construction ${EF_CONSTRUCTION} \
           --num-shards ${SHARDING} --replica-number ${REPLICA} \
@@ -127,7 +127,7 @@ if [[ "${ENABLE_QDRANT}" == "true" ]]; then
       [[ "${DROP_OLD_QDRANT}" == "false" ]] && qdrant_drop_flag="--skip-drop-old"
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench qdrantlocal \
-          --db-label k8s-qdrant --task-label ${BATCH_ID}-qdrant-m${m}-ef${ef}-efc${EF_CONSTRUCTION} \
+          --db-label k8s-qdrant --task-label ${BATCH_ID}-qdrant-m${m}-ef${ef} \
           --case-type ${CASE_TYPE} --url http://qdrant.marco.svc.cluster.local:6333 \
           --metric-type COSINE --on-disk False --m ${m} --ef-construct ${ef} --hnsw-ef ${ef} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
@@ -154,7 +154,7 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
       
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench weaviate \
-          --db-label k8s-weaviate --task-label ${BATCH_ID}-weaviate-m${m}-ef${ef}-efc${EF_CONSTRUCTION}-rep${REPLICA}-shard${SHARDING} \
+          --db-label k8s-weaviate --task-label ${BATCH_ID}-weaviate-m${m}-ef${ef}-rep${REPLICA}-shard${SHARDING} \
           --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
           --no-auth --m ${m} --ef-construction ${EF_CONSTRUCTION} --ef ${ef} --metric-type COSINE \
           --replication-factor ${REPLICA} \
