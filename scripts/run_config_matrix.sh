@@ -27,8 +27,9 @@ CASE_TYPE=${CASE_TYPE:-Performance768D100K}
 # Replica count for both Milvus and Weaviate (data copied to N nodes)
 # Set to 1 for single-replica baseline (no replication overhead)
 REPLICA=${REPLICA:-1}
-# Weaviate sharding count for parallel query execution (data split across N nodes)
-WEAVIATE_SHARDING_COUNT=${WEAVIATE_SHARDING_COUNT:-1}
+# Sharding count for both Milvus and Weaviate (data split across N nodes)
+# Set to 1 for single-shard baseline (no parallel query within single request)
+SHARDING=${SHARDING:-1}
 K=${K:-100}
 # HNSW efConstruction: Fixed high value for quality graph (do not vary with efSearch)
 EF_CONSTRUCTION=${EF_CONSTRUCTION:-360}
@@ -98,7 +99,7 @@ if [[ "${ENABLE_MILVUS}" == "true" ]]; then
           --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
           --case-type ${CASE_TYPE} --uri http://milvus.marco.svc.cluster.local:19530 \
           --m ${m} --ef-search ${ef} --ef-construction ${EF_CONSTRUCTION} \
-          --replica-number ${REPLICA} \
+          --num-shards ${SHARDING} --replica-number ${REPLICA} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
           --num-concurrency ${NUM_CONCURRENCY}"
@@ -150,7 +151,7 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
           --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
           --no-auth --m ${m} --ef-construction ${EF_CONSTRUCTION} --ef ${ef} --metric-type COSINE \
           --replication-factor ${REPLICA} \
-          --sharding-count ${WEAVIATE_SHARDING_COUNT} \
+          --sharding-count ${SHARDING} \\
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
           --num-concurrency ${NUM_CONCURRENCY}"
