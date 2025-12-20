@@ -1,31 +1,12 @@
 #!/usr/bin/env bash
 
-
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/config.sh"
 
-BATCH_ID=${BATCH_ID:-$(date +%Y%m%d-%H%M)}
-
-NS=${NS:-marco}
-IMG=${IMG:-hungngodev/vectordbbench:latest}
-DATA_DIR=${DATA_DIR:-/opt/vdb/datasets}
-HOST_DATA_DIR=${HOST_DATA_DIR:-/mnt/nfs/home/hmngo/work1/hmngo/datasets}
-HOST_RESULTS_DIR=${HOST_RESULTS_DIR:-/mnt/nfs/home/hmngo/work1/hmngo/vdb_results}
-PROTOBUF_VERSION=${PROTOBUF_VERSION:-6.31.1}
-CPU=${CPU:-16}
-MEM=${MEM:-64Gi}
-VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
-VALD_TIMEOUT=${VALD_TIMEOUT:-300}
-VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
-NUM_CONCURRENCY=${NUM_CONCURRENCY:-32}
-CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-60}
-CASE_TYPE=${CASE_TYPE:-Performance768D100K}
-REPLICA=${REPLICA:-1}
-SHARDING=${SHARDING:-1}
-K=${K:-100}
-EF_CONSTRUCTION=${EF_CONSTRUCTION:-360}
-HNSW_M_VALUES=(${HNSW_M_VALUES:-4 8 16 32 64 128 256})
-HNSW_EF_VALUES=(${HNSW_EF_VALUES:-128 192 256 384 512 640 768 1024})
+HNSW_M_VALUES_ARR=(${HNSW_M_VALUES})
+HNSW_EF_VALUES_ARR=(${HNSW_EF_VALUES})
 
 run_job() {
   local job="$1"; shift
@@ -78,12 +59,11 @@ EOF
 
 echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 
-ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
   mid=1
-  for m in "${HNSW_M_VALUES[@]}"; do
+  for m in "${HNSW_M_VALUES_ARR[@]}"; do
     first_ef_for_m=true
-    for ef in "${HNSW_EF_VALUES[@]}"; do
+    for ef in "${HNSW_EF_VALUES_ARR[@]}"; do
       job="vdb-milvus-${mid}"
       
       if [[ "${first_ef_for_m}" == "true" ]]; then
@@ -107,12 +87,10 @@ if [[ "${ENABLE_MILVUS}" == "true" ]]; then
   done
 fi
 
-ENABLE_QDRANT=${ENABLE_QDRANT:-false}
 if [[ "${ENABLE_QDRANT}" == "true" ]]; then
-  DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
   qid=1
-  for m in "${HNSW_M_VALUES[@]}"; do
-    for ef in "${HNSW_EF_VALUES[@]}"; do
+  for m in "${HNSW_M_VALUES_ARR[@]}"; do
+    for ef in "${HNSW_EF_VALUES_ARR[@]}"; do
       job="vdb-qdrant-${qid}"
       qdrant_drop_flag="--drop-old"
       [[ "${DROP_OLD_QDRANT}" == "false" ]] && qdrant_drop_flag="--skip-drop-old"
@@ -129,12 +107,11 @@ if [[ "${ENABLE_QDRANT}" == "true" ]]; then
   done
 fi
 
-ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
   wid=1
-  for m in "${HNSW_M_VALUES[@]}"; do
+  for m in "${HNSW_M_VALUES_ARR[@]}"; do
     first_ef_for_m=true
-    for ef in "${HNSW_EF_VALUES[@]}"; do
+    for ef in "${HNSW_EF_VALUES_ARR[@]}"; do
       job="vdb-weaviate-${wid}"
       
       if [[ "${first_ef_for_m}" == "true" ]]; then
@@ -159,7 +136,6 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
   done
 fi
 
-ENABLE_VALD=${ENABLE_VALD:-false}
 if [[ "${ENABLE_VALD}" == "true" ]]; then
   vald_num=(10 20 40 60 80 100 150 200 300 400)
   vid=1
