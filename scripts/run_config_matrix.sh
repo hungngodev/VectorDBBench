@@ -20,13 +20,13 @@ VALD_WAIT_SECONDS=${VALD_WAIT_SECONDS:-60}
 VALD_TIMEOUT=${VALD_TIMEOUT:-300}
 VALD_TIMEOUT=${VALD_TIMEOUT:-300}
 VALD_CONCURRENCIES=${VALD_CONCURRENCIES:-"1"}
-# Concurrency list for client scaling (README: 1,2,4,8,16,32)
-NUM_CONCURRENCY=${NUM_CONCURRENCY:-1,2,4,8,16,32}
+# Concurrency list for client scaling (high concurrency for distributed testing)
+NUM_CONCURRENCY=${NUM_CONCURRENCY:-512}
 CONCURRENCY_DURATION=${CONCURRENCY_DURATION:-60}
 CASE_TYPE=${CASE_TYPE:-Performance768D100K}
-# Weaviate replication factor for fault tolerance (data copied to N nodes)
-# Set to 3 for read scaling with ConsistencyLevel.ONE
-WEAVIATE_REPLICATION_FACTOR=${WEAVIATE_REPLICATION_FACTOR:-3}
+# Replica count for both Milvus and Weaviate (data copied to N nodes)
+# Set to 1 for single-replica baseline (no replication overhead)
+REPLICA=${REPLICA:-1}
 # Weaviate sharding count for parallel query execution (data split across N nodes)
 WEAVIATE_SHARDING_COUNT=${WEAVIATE_SHARDING_COUNT:-1}
 K=${K:-100}
@@ -98,6 +98,7 @@ if [[ "${ENABLE_MILVUS}" == "true" ]]; then
           --db-label k8s-milvus --task-label milvus-m${m}-ef${ef} \
           --case-type ${CASE_TYPE} --uri http://milvus.marco.svc.cluster.local:19530 \
           --m ${m} --ef-search ${ef} --ef-construction ${EF_CONSTRUCTION} \
+          --replica-number ${REPLICA} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
           --num-concurrency ${NUM_CONCURRENCY}"
@@ -148,7 +149,7 @@ if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
           --db-label k8s-weaviate --task-label weaviate-m${m}-ef${ef} \
           --case-type ${CASE_TYPE} --url http://weaviate.marco.svc.cluster.local \
           --no-auth --m ${m} --ef-construction ${EF_CONSTRUCTION} --ef ${ef} --metric-type COSINE \
-          --replication-factor ${WEAVIATE_REPLICATION_FACTOR} \
+          --replication-factor ${REPLICA} \
           --sharding-count ${WEAVIATE_SHARDING_COUNT} \
           --concurrency-duration ${CONCURRENCY_DURATION} --k ${K} \
           --drop-old --load --search-serial --search-concurrent \
