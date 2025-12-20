@@ -80,8 +80,14 @@ else
   printf "      - name: results\n        emptyDir: {}\n"
 fi)
 EOF
-  kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}" || true
-  kubectl -n "$NS" logs -f "job/${job}" || true
+  # Wait for pod to be created and running
+  echo "Waiting for job/${job} to start..."
+  kubectl -n "$NS" wait --for=condition=Ready pod -l job-name="${job}" --timeout=5m
+  # Wait for job to complete
+  echo "Waiting for job/${job} to complete..."
+  kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}"
+  # Stream logs (may already be done)
+  kubectl -n "$NS" logs "job/${job}" || true
 }
 
 echo "Running matrix sweeps in namespace: $NS with image: $IMG"
