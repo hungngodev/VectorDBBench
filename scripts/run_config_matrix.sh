@@ -33,6 +33,10 @@ SHARDING=${SHARDING:-1}
 K=${K:-100}
 # HNSW efConstruction: Fixed high value for quality graph (do not vary with efSearch)
 EF_CONSTRUCTION=${EF_CONSTRUCTION:-360}
+# HNSW M values: graph connectivity (higher = better recall, slower build/query)
+HNSW_M_VALUES=(${HNSW_M_VALUES:-4 8 16 32 64 128 256})
+# HNSW EF values: search beam width (higher = better recall, slower query)
+HNSW_EF_VALUES=(${HNSW_EF_VALUES:-128 192 256 384 512 640 768 1024})
 
 run_job() {
   local job="$1"; shift
@@ -87,12 +91,9 @@ echo "Running matrix sweeps in namespace: $NS with image: $IMG"
 # EF values: search beam width (higher = better recall, slower query)
 ENABLE_MILVUS=${ENABLE_MILVUS:-true}
 if [[ "${ENABLE_MILVUS}" == "true" ]]; then
-  # Full matrix: 7 M values x 8 EF values = 56 configurations
-  milvus_m=(4 8 16 32 64 128 256)
-  milvus_ef=(128 192 256 384 512 640 768 1024)
   mid=1
-  for m in "${milvus_m[@]}"; do
-    for ef in "${milvus_ef[@]}"; do
+  for m in "${HNSW_M_VALUES[@]}"; do
+    for ef in "${HNSW_EF_VALUES[@]}"; do
       job="vdb-milvus-${mid}"
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench milvushnsw \
@@ -111,13 +112,10 @@ fi
 # Qdrant matrix (trimmed for quick test; drop_old/load enabled by default)
 ENABLE_QDRANT=${ENABLE_QDRANT:-false}
 if [[ "${ENABLE_QDRANT}" == "true" ]]; then
-  # Qdrant: 6x10 = 60 configs
-  qdrant_m=(4 8 16 32 64 128)
-  qdrant_ef=(64 96 128 192 256 384 512 640 768 1024)
   DROP_OLD_QDRANT=${DROP_OLD_QDRANT:-true}
   qid=1
-  for m in "${qdrant_m[@]}"; do
-    for ef in "${qdrant_ef[@]}"; do
+  for m in "${HNSW_M_VALUES[@]}"; do
+    for ef in "${HNSW_EF_VALUES[@]}"; do
       job="vdb-qdrant-${qid}"
       qdrant_drop_flag="--drop-old"
       [[ "${DROP_OLD_QDRANT}" == "false" ]] && qdrant_drop_flag="--skip-drop-old"
@@ -138,12 +136,9 @@ fi
 # Distributed config: 3-node cluster with replication for read scaling
 ENABLE_WEAVIATE=${ENABLE_WEAVIATE:-true}
 if [[ "${ENABLE_WEAVIATE}" == "true" ]]; then
-  # Full matrix: 7 M values x 8 EF values = 56 configurations
-  weav_m=(4 8 16 32 64 128 256)
-  weav_ef=(128 192 256 384 512 640 768 1024)
   wid=1
-  for m in "${weav_m[@]}"; do
-    for ef in "${weav_ef[@]}"; do
+  for m in "${HNSW_M_VALUES[@]}"; do
+    for ef in "${HNSW_EF_VALUES[@]}"; do
       job="vdb-weaviate-${wid}"
       run_job "$job" bash -lc "cd /opt/vdb && \
         vectordbbench weaviate \
