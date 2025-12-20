@@ -11,7 +11,3 @@ venv/
 .venv/
 .idea/
 results/
-logs/
-*.log
-*.csv
-analysis/
