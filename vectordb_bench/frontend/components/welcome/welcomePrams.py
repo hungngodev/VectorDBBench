@@ -62,84 +62,22 @@ def welcomePrams(st):
             "link": "results",
         },
         {
-            "title": "Quries Per Dollar",
+            "title": "Chart Performance",
             "description": (
                 "<span style='font-size: 17px;'>"
-                "To view the results of quries per dollar.<br> "
-                "(similar to qps in Results) "
+                "Visualize QPS, latency, recall, and concurrency with various chart types."
                 "</span>"
             ),
-            "image": "fig/homepage/qp$.png",
-            "link": "quries_per_dollar",
+            "image": "fig/homepage/concurrent.png",
+            "link": "charts",
         },
         {
             "title": "Tables",
             "description": (
-                "<span style='font-size: 17px;'>" "To view the results of differnt datasets in tables." "</span>"
+                "<span style='font-size: 17px;'>" "View benchmark results in a tabular format." "</span>"
             ),
             "image": "fig/homepage/table.png",
             "link": "tables",
-        },
-        {
-            "title": "Concurrent Performance",
-            "description": (
-                "<span style='font-size: 17px;'>"
-                "To view the variation of qps with latency under different concurrent."
-                "</span>"
-            ),
-            "image": "fig/homepage/concurrent.png",
-            "link": "concurrent",
-        },
-        {
-            "title": "Label Filter Performance",
-            "description": (
-                "<span style='font-size: 17px;'>"
-                "To view the perfomance of datasets under different label filter ratios "
-                "</span>"
-            ),
-            "image": "fig/homepage/label_filter.png",
-            "link": "label_filter",
-        },
-        {
-            "title": "Int Filter Performance",
-            "description": (
-                "<span style='font-size: 17px;'>"
-                "To view the perfomance of datasets under different int filter ratios "
-                "</span>"
-            ),
-            "image": "fig/homepage/label_filter.png",
-            "link": "int_filter",
-        },
-        {
-            "title": "Streaming Performance",
-            "description": (
-                "<span style='font-size: 17px;'>"
-                "To view the perfomance of datasets under different search stages and insertion rates. "
-                "</span>"
-            ),
-            "image": "fig/homepage/streaming.png",
-            "link": "streaming",
-        },
-        {
-            "title": "Run Test",
-            "description": (
-                "<span style='font-size: 17px;'>"
-                "Select the databases and cases to test.<br>"
-                "The test results will be displayed in Results."
-                "</span>"
-            ),
-            "image": "fig/homepage/run_test.png",
-            "link": "run_test",
-        },
-        {
-            "title": "Custom Dataset",
-            "description": (
-                "<span style='font-size: 17px;'>"
-                "Define users' own datasets with detailed descriptions of setting each parameter."
-                "</span>"
-            ),
-            "image": "fig/homepage/custom.png",
-            "link": "custom",
         },
     ]
 
@@ -148,26 +86,7 @@ def welcomePrams(st):
     for option in options:
         option["image"] = get_image_as_base64(option["image"])
 
-    for option in options[:7]:
-        html_content += f"""
-        <a href="/{option['link']}" target="_self" style="text-decoration: none;">
-            <div class="section-card">
-                <img src="{option['image']}" class="section-image" alt="{option['title']}">
-                <div class="section-title">{option['title']}</div>
-                <div class="section-description">{option['description']}</div>
-            </div>
-        </a>
-        """
-
-    html_content += """
-    </div>
-    <div class="title-row">
-        <h2>Run Your Own Test</h2>
-    </div>
-    <div class="last-row">
-    """
-
-    for option in options[7:9]:
+    for option in options:
         html_content += f"""
         <a href="/{option['link']}" target="_self" style="text-decoration: none;">
             <div class="section-card">

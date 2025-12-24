@@ -32,9 +32,9 @@ def getPatternShape(i):
 MAX_AUTO_REFRESH_COUNT = 999999
 MAX_AUTO_REFRESH_INTERVAL = 5000  # 5s
 
-PAGE_TITLE = "VectorDB Benchmark"
+PAGE_TITLE = "UMass Edition"
 FAVICON = "https://assets.zilliz.com/VDB_Bench_icon_d3276bedc4.png"
-HEADER_ICON = "https://assets.zilliz.com/VDB_Bench_text_icon_6c5f52a458.png"
+HEADER_ICON = "fig/umass_logo.png"
 
 # RedisCloud icon: https://assets.zilliz.com/Redis_Cloud_74b8bfef39.png
 # Elasticsearch icon: https://assets.zilliz.com/elasticsearch_beffeadc29.png

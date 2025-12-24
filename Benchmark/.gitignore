@@ -3,3 +3,4 @@
 /archive/*
 *.json
 *.log
+report/*
