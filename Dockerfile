@@ -11,8 +11,8 @@ FROM python:3.11-slim-buster
 COPY --from=builder-image /usr/local/bin /usr/local/bin
 COPY --from=builder-image /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
-WORKDIR /opt/code
+WORKDIR /opt/vdb
 COPY . .
-ENV PYTHONPATH /opt/code
+ENV PYTHONPATH /opt/vdb
 
 ENTRYPOINT ["python3", "-m", "vectordb_bench"]
