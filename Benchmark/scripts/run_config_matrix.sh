@@ -83,7 +83,7 @@ EOF
   echo "Waiting for job/${job} to start..."
   kubectl -n "$NS" wait --for=condition=Ready pod -l job-name="${job}" --timeout=5m
   echo "Waiting for job/${job} to complete..."
-  kubectl -n "$NS" wait --for=condition=complete --timeout=2h "job/${job}"
+  kubectl -n "$NS" wait --for=condition=complete --timeout=8h "job/${job}"
   kubectl -n "$NS" logs "job/${job}" || true
   collect_results
 }
