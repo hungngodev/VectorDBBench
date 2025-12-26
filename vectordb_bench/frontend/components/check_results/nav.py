@@ -24,16 +24,15 @@ def NavToResults(st, key="nav-to-results"):
 
 def NavToPages(st):
     options = [
-        {"name": "Run Test", "link": "run_test"},
+        # {"name": "Run Test", "link": "run_test"},
         {"name": "Results", "link": "results"},
-        {"name": "Qps & Recall", "link": "qps_recall"},
-        {"name": "Quries Per Dollar", "link": "quries_per_dollar"},
-        {"name": "Concurrent", "link": "concurrent"},
-        {"name": "Label Filter", "link": "label_filter"},
-        {"name": "Int Filter", "link": "int_filter"},
-        {"name": "Streaming", "link": "streaming"},
+        {"name": "Charts", "link": "charts"},
+        # {"name": "Quries Per Dollar", "link": "quries_per_dollar"},
+        # {"name": "Label Filter", "link": "label_filter"},
+        # {"name": "Int Filter", "link": "int_filter"},
+        # {"name": "Streaming", "link": "streaming"},
         {"name": "Tables", "link": "tables"},
-        {"name": "Custom Dataset", "link": "custom"},
+        # {"name": "Custom Dataset", "link": "custom"},
     ]
 
     html = ""

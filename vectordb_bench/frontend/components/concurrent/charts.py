@@ -6,7 +6,7 @@ import plotly.express as px
 from vectordb_bench.frontend.config.styles import COLOR_MAP
 
 
-def drawChartsByCase(allData, showCaseNames: list[str], st, latency_type: str):
+def drawChartsByCase(allData, showCaseNames: list[str], st, latency_type: str, chart_type: str = "QPS vs Latency"):
     initMainExpanderStyle(st)
     for caseName in showCaseNames:
         chartContainer = st.expander(caseName, True)
@@ -36,7 +36,10 @@ def drawChartsByCase(allData, showCaseNames: list[str], st, latency_type: str):
             for caseData in caseDataList
             for i in range(len(caseData["conc_num_list"]))
         ]
-        drawChart(data, chartContainer, key=f"{caseName}-qps-p99", x_metric=latency_type)
+        if chart_type == "QPS vs Concurrency":
+            drawChart(data, chartContainer, key=f"{caseName}-qps-conc", x_metric="conc_num", y_metric="qps")
+        else:
+            drawChart(data, chartContainer, key=f"{caseName}-qps-p99", x_metric=latency_type, y_metric="qps")
 
 
 def getRange(metric, data, padding_multipliers):
@@ -53,6 +56,8 @@ def getRange(metric, data, padding_multipliers):
 def gen_title(s: str) -> str:
     if "latency" in s:
         return f'{s.replace("_", " ").title()} (ms)'
+    elif s == "conc_num":
+        return "Concurrency Level"
     else:
         return s.upper()
 

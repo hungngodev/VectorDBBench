@@ -40,7 +40,7 @@ def main():
     st.set_page_config(
         page_title=PAGE_TITLE,
         page_icon=FAVICON,
-        # layout="wide",
+        layout="wide",
         # initial_sidebar_state="collapsed",
     )
 

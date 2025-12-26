@@ -60,8 +60,16 @@ def main():
     getResults(resultesContainer, "vectordb_bench_concurrent")
 
     # main
-    latency_type = st.radio("Latency Type", options=["latency_p99", "latency_p95", "latency_avg"])
-    drawChartsByCase(shownData, showCaseNames, st.container(), latency_type=latency_type)
+    col1, col2 = st.columns(2)
+    with col1:
+        chart_type = st.radio("Chart Type", options=["QPS vs Latency", "QPS vs Concurrency"], horizontal=True)
+    with col2:
+        if chart_type == "QPS vs Latency":
+            latency_type = st.radio("Latency Type", options=["latency_p99", "latency_p95", "latency_avg"], horizontal=True)
+        else:
+            latency_type = "latency_p99"  # not used for concurrency chart
+    
+    drawChartsByCase(shownData, showCaseNames, st.container(), latency_type=latency_type, chart_type=chart_type)
 
     # footer
     footer(st.container())

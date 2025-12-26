@@ -29,13 +29,13 @@ def main():
     allResults = benchmark_runner.get_results()
 
     st.title("Vector Database Benchmark")
-    st.caption(
-        "Choose your desired test results to display from the sidebar. "
-        "For your reference, we've included two standard benchmarks tested by our team. "
-        "Note that `standard_2025` was tested in 2025; the others in 2023. "
-        "Unless explicitly labeled as distributed multi-node, test with single-node mode by default."
-    )
-    st.caption("We welcome community contributions for better results, parameter configurations, and optimizations.")
+    # st.caption(
+    #     "Choose your desired test results to display from the sidebar. "
+    #     "For your reference, we've included two standard benchmarks tested by our team. "
+    #     "Note that `standard_2025` was tested in 2025; the others in 2023. "
+    #     "Unless explicitly labeled as distributed multi-node, test with single-node mode by default."
+    # )
+    # st.caption("We welcome community contributions for better results, parameter configurations, and optimizations.")
     # results selector and filter
     resultSelectorContainer = st.sidebar.container()
     shownData, failedTasks, showCaseNames = getshownData(resultSelectorContainer, allResults)

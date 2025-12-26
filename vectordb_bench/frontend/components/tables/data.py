@@ -23,6 +23,7 @@ def formatData(caseResults: list[CaseResult]):
     for caseResult in caseResults:
         db = caseResult.task_config.db.value
         db_label = caseResult.task_config.db_config.db_label
+        task_label = getattr(caseResult, 'task_label', '') or caseResult.task_config.task_label if hasattr(caseResult.task_config, 'task_label') else ''
         case_config = caseResult.task_config.case_config
         case = case_config.case
         filter_rate = case.filter_rate
@@ -32,6 +33,7 @@ def formatData(caseResults: list[CaseResult]):
             {
                 "db": db,
                 "db_label": db_label,
+                "task_label": task_label,
                 "case_name": case.name,
                 "dataset": dataset,
                 "filter_rate": filter_rate,
